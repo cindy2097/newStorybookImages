@@ -26,7 +26,7 @@ def contrast (rgb1, rgb2):
     darkest = min(lum1, lum2)
     return (brightest + 0.05) / (darkest + 0.05)
 
-def changeImage (processTextResult): 
+def changeImage (processTextResult, lan): 
     for img_result in tqdm(processTextResult, desc="Changing image: "): 
         img = img_result[0]
         index_image = img_result[1]
@@ -46,7 +46,7 @@ def changeImage (processTextResult):
 
             # get optimal font size 
             if optimal_font_size == 1: 
-                fontpath = os.path.join(os.getcwd(), "src", "Fonts", "arial.ttf")
+                fontpath = os.path.join(os.getcwd(), "src", "Fonts", "ArialUnicodeMs.ttf")
                 img_fraction = 0.95 # portion of image width you want text width to be
                 font = ImageFont.truetype(fontpath, optimal_font_size)
                 while font.getsize(text)[1] < img_fraction*h:

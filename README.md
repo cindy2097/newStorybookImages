@@ -13,6 +13,7 @@ This project will attempt extract text from a pdf and then try to output a new v
 * Install tqdm (progress bar) using `pip3 install tqdm`
 * Install numpy using `pip3 install numpy`
 * Install FPDF using `pip3 install fpdf` (used for combining images into a single pdf)
+* Libraqm, in order to display various types of 
 
 ## Usage: 
 

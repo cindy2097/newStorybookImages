@@ -21,7 +21,7 @@ def convertPDFToImage (path, cut_begin, cut_end):
         if file.endswith(".jpg"):
             print("Images already extracted.")
             return
-    print("Converting pdf to images...")
+    print("Converting pdf to images...", end="")
     pages = pdf2image.convert_from_path(path)
     for index, page in enumerate(pages):
         if index <= cut_begin:
@@ -31,6 +31,7 @@ def convertPDFToImage (path, cut_begin, cut_end):
         cwd = os.getcwd()
         path = os.path.join(cwd, "src", "PNGImgs", "page"+str(index+1)+".jpg")
         page.save(path, "JPEG")
+    print("Done")
 
 if __name__ == "__main__":
     argument_count = len(sys.argv) - 1 
@@ -51,7 +52,7 @@ if __name__ == "__main__":
     result = processText(full_path_img_dir, target_language)
 
     # Third Step: Alter image to for fill bounding box with average color, and with new translation
-    changeImage(result)
+    changeImage(result, target_language)
 
     # Fourth Step: Create PDF based on the images, then save the PDF to the output folder
     print("Combining images...", end="")
@@ -61,7 +62,7 @@ if __name__ == "__main__":
 
     # Fifth Step: Delete contents in directories: PNGImgs, PNGImgsOutput
     print("Remove contents from directories...",end="")
-    # [os.remove(os.path.join(full_path_img_dir, file)) for file in os.listdir(full_path_img_dir)]
-    # [os.remove(os.path.join(out_img_dir, file)) for file in os.listdir(out_img_dir)]
+    [os.remove(os.path.join(full_path_img_dir, file)) for file in os.listdir(full_path_img_dir)]
+    [os.remove(os.path.join(out_img_dir, file)) for file in os.listdir(out_img_dir)]
     print("Done")
     
