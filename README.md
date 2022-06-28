@@ -4,15 +4,9 @@ This project will attempt extract text from a pdf and then try to output a new v
 
 ## Dependencies
 
-* Install `pdf2image` python library using `pip3 install pdf2image`
-* However, `pdf2image` requires `pdftoppm`, so install this using `sudo apt install poppler-utils`. You could install the [Mac Version](https://macappstore.org/poppler/) or the [Windows Version](https://sourceforge.net/projects/poppler-win32/) as well. 
-* Also install `img2pdf` using `pip3 install img2pdf`
-* Install cv2 (image processing) using `pip3 install opencv-python`
-* Install pytesseract (OCR) python library using `pip3 install pytesseract`
+* However, `pdf2image` requires `pdftoppm`, so install this using `sudo apt install poppler-utils`. You could install the [Mac Version](https://macappstore.org/poppler/) or the [Windows Version](https://sourceforge.net/projects/poppler-win32/) as well.
 * However, you do have to install the backend of pytesseract using `sudo apt install tesseract-ocr`. Then, you add the file into line `11` of the file `textDetection.py` (alternatively, you could add the file to your path).
-* Install tqdm (progress bar) using `pip3 install tqdm`
-* Install numpy using `pip3 install numpy`
-* Install FPDF using `pip3 install fpdf` (used for combining images into a single pdf)
+* You also need to install requirements, it's just a simple `pip install -r requirements.txt`.
 
 ## Usage: 
 

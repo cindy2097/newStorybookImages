@@ -10,6 +10,8 @@ def img_to_pdf (input_dir, output_file):
     pdf = fpdf.FPDF('L', 'mm', 'A4')
     # imagelist is the list with all image filenames
     for image in sorted(os.listdir(input_dir)):
+        if not image.endswith(".jpg"):
+            continue
         full_path = os.path.join(input_dir, image)
         pdf.add_page()
         #the 300 and 250 is the size for the image to be blown up to
