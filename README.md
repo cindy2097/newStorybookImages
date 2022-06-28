@@ -34,10 +34,6 @@ Example (Linux): <br>
 5. Delete the PNG images
 
 ## TODO: 
-* Doesn't support special characters like Arabic
 * Add the text in a seperate area instead of a whole seperate image
-* Make font size adjust to the bounding box width & height.
-* Collect all the images and combine them into the PDF (for now, it's just outputting to folder `./src/PNGImgsOutput`)
-* Remove certain pages 
 * Improve contour system (sometimes it doesn't recognize all the words in the page)
 * Font recognizer.
