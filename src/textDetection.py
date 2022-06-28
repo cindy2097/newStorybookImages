@@ -78,6 +78,7 @@ def get_dominant_color(pil_img, palette_size=16):
 
 def processText (path, target_language): 
     result = [] 
+    total_text = "" 
     for filename in os.listdir(path):
         index = int(filename.split(".")[0][4:])
         if not filename.endswith(".jpg"):
@@ -87,17 +88,18 @@ def processText (path, target_language):
         # get countours 
         contours, im2 = getCountours(full_path)
 
-        # Initialize arrays 
+        # Initialize variables 
         arr = []
         arr.append(im2)
-        arr.append(index)
+        arr.append(index)   
+        total_text_page = ""
         for cnt in tqdm(contours, desc="Processing text of image " + str(index) + ": "):
             x, y, w, h = cv2.boundingRect(cnt)
 
             # don't have our bounding boxes too big!
             if h > im2.shape[0] * 0.5 or w > im2.shape[1] * 0.5:
                 continue
-            
+        
             # Cropping the text block for giving input to OCR
             cropped = im2[y:y + h, x:x + w]
             
@@ -108,12 +110,18 @@ def processText (path, target_language):
             # Apply OCR on the cropped image
             text = re.sub(r'[\x00-\x1f]+', '',  pytesseract.image_to_string(cropped))
             if len(text) <= 1: continue; # no short text
-
-            # Translate ----------------- TEST (for now, not translating) ---------------- 
-            if text != "": 
-                text = translateText(text, target_language)
-            
+            total_text_page += text + "[]"
+                        
             # append to array
-            arr.append([x, y, w, h, text, r, g, b])
+            arr.append([x, y, w, h, "", r, g, b])
         result.append(arr)
+        total_text += total_text_page + "()"
+    
+    # Get translation
+    trans = translateText(total_text, target_language)
+    for index_page, text_page in enumerate(trans.split("()")):  
+        for index_line, text_line in enumerate(text_page.split("[]")): 
+            if len(text_line) <= 1: continue
+            result[index_page][index_line+2][4] = text_line.strip()
+
     return result

@@ -19,7 +19,7 @@ This project will attempt extract text from a pdf and then try to output a new v
 Then, you could use the program in this format: <br>
 `python3 StoryboardTranslate.py [path to input PDF] [path to output PDF]` <br>
 Example (Linux): <br>
-`python3 StoryboardTranslate.py ./input/MaryHadALittleLamb.pdf ./output/`
+`python3 StoryboardTranslate.py ./input/GreenEggsHam.pdf ./output/TranslatedGreenEggsHam.pdf`
 
 ## Pipeline: 
 
