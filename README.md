@@ -6,6 +6,7 @@ This project will attempt extract text from a pdf and then try to output a new v
 
 * However, `pdf2image` requires `pdftoppm`, so install this using `sudo apt install poppler-utils`. You could install the [Mac Version](https://macappstore.org/poppler/) or the [Windows Version](https://sourceforge.net/projects/poppler-win32/) as well.
 * However, you do have to install the backend of pytesseract using `sudo apt install tesseract-ocr`. Then, you add the file into line `11` of the file `textDetection.py` (alternatively, you could add the file to your path).
+* If you are on a mac, do  `brew list tesseract` and use the first result to add to your path.
 * You also need to install requirements, it's just a simple `pip install -r requirements.txt`.
 
 ## Usage: 
