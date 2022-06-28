@@ -79,9 +79,9 @@ def get_dominant_color(pil_img, palette_size=16):
 def processText (path, target_language): 
     result = [] 
     for filename in os.listdir(path):
-        index = int(filename.split(".")[0][4:])
         if not filename.endswith(".jpg"):
             continue
+        index = int(re.findall(r'\d+', filename.split(".")[0])[0])
         full_path = os.path.join(path, filename)
 
         # get countours 
