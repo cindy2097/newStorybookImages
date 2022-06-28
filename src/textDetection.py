@@ -57,10 +57,9 @@ def translateText (text, target_language):
         "targetLanguage": "{target_language}"
     }}
     """
-    time.sleep(3)
     resp = requests.post(url, headers=headers, data=data)
-    response_dict = json.loads(resp)
-    return response_dict["data"]["translated_text"]
+    response_dict = json.loads(resp.text)
+    return response_dict["data"]["translatedText"]
 
 def get_dominant_color(pil_img, palette_size=16):
     # Resize image to speed up processing
@@ -112,8 +111,8 @@ def processText (path, target_language):
             if len(text) <= 1: continue; # no short text
 
             # Translate ----------------- TEST (for now, not translating) ---------------- 
-            # if text != "": 
-            #     text = translateText(text, target_language)
+            if text != "": 
+                text = translateText(text, target_language)
             
             # append to array
             arr.append([x, y, w, h, text, r, g, b])
