@@ -30,7 +30,10 @@ def changeImage (processTextResult, lan):
     for img_result in tqdm(processTextResult, desc="Changing image: "): 
         img = img_result[0]
         index_image = img_result[1]
+        fontpath = os.path.join(os.getcwd(), "src", "Fonts", "ArialUnicodeMs.ttf")
+        img_fraction = 0.95 # portion of image width you want text width to be
         optimal_font_size = 1
+        font = ImageFont.truetype(fontpath, optimal_font_size)
         for index in range(2, len(img_result)):
             x, y, w, h, text, r_avg, g_avg, b_avg = img_result[index]
 
@@ -46,12 +49,12 @@ def changeImage (processTextResult, lan):
 
             # get optimal font size 
             if optimal_font_size == 1: 
-                fontpath = os.path.join(os.getcwd(), "src", "Fonts", "ArialUnicodeMs.ttf")
-                img_fraction = 0.95 # portion of image width you want text width to be
-                font = ImageFont.truetype(fontpath, optimal_font_size)
                 while font.getsize(text)[1] < img_fraction*h:
                     optimal_font_size += 1 # iterate until the text size is just larger than the criteria
                     font = ImageFont.truetype(fontpath, optimal_font_size)
+            while font.getsize(text)[0] > img_fraction*w:
+                optimal_font_size -= 1
+                font = ImageFont.truetype(fontpath, optimal_font_size)
 
             # Then, add text 
             img_pil = Image.fromarray(img)
