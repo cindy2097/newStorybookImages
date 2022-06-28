@@ -4,7 +4,6 @@ import os                # Path
 from tqdm import tqdm    # Progress Bar
 import numpy as np       # average color calculations
 import requests          # For requesting translation to server.
-import time              # For sleep
 import json              # For extraction of translation from server
 import src.SensitiveInfo # Sensitive Info (ex: auth token) regarding connection to the server
 import re                # For some reason pytesseract adds in \n and \x0c. This will remove it
@@ -21,7 +20,7 @@ def getCountours (path):
     # Convert the image to gray scale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
-    # Performing OTSU threshold
+    # Performing OTSU threshold (highlights edges)
     _, thresh1 = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU | cv2.THRESH_BINARY_INV)
     
     # Specify structure shape and kernel size.
@@ -29,11 +28,11 @@ def getCountours (path):
     # of the rectangle to be detected.
     # A smaller value like (10, 10) will detect
     # each word instead of a sentence.
-    rect_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (18, 18))
+    rect_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25))
     
-    # Applying dilation on the threshold image
+    # Applying dilation on the threshold image (somewhat blurs the image so that the bounding box can generalize)
     dilation = cv2.dilate(thresh1, rect_kernel, iterations = 1)
-    
+
     # Finding contours
     contours, _ = cv2.findContours(dilation, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     return contours, img.copy()
@@ -52,12 +51,12 @@ def translateText (text, target_language):
     # send request
     data = f""" 
     {{
-        "text": "{text}",
+        "text": "{text.encode('utf-8')}",
         "sourceLanguage": "en",
         "targetLanguage": "{target_language}"
     }}
     """
-    resp = requests.post(url, headers=headers, data=data)
+    resp = requests.post(url, headers=headers, data=data) # This will pause for a while if we send too much requests.
     response_dict = json.loads(resp.text)
     return response_dict["data"]["translatedText"]
 

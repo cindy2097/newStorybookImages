@@ -12,11 +12,12 @@ This project will attempt extract text from a pdf and then try to output a new v
 * However, you do have to install the backend of pytesseract using `sudo apt install tesseract-ocr`. Then, you add the file into line `11` of the file `textDetection.py` (alternatively, you could add the file to your path).
 * Install tqdm (progress bar) using `pip3 install tqdm`
 * Install numpy using `pip3 install numpy`
+* Install FPDF using `pip3 install fpdf` (used for combining images into a single pdf)
 
 ## Usage: 
 
 Then, you could use the program in this format: <br>
-`python3 StoryboardTranslate.py [path to input PDF] [path to output folder]` <br>
+`python3 StoryboardTranslate.py [path to input PDF] [path to output PDF]` <br>
 Example (Linux): <br>
 `python3 StoryboardTranslate.py ./input/MaryHadALittleLamb.pdf ./output/`
 
@@ -28,14 +29,13 @@ Example (Linux): <br>
 
 3. Then, fill the bounding box with the average color, and put the text in the middle of the bounding box. The font size will be calculated according to height of the bounding box and the font color will be either white or black, which is determined by the average color.
 
-4. Link the new PNG images back into a PDF format, and then save the PDF into the output folder.
+4. Link the new PNG images bimageack into a PDF format, and ten save the PDF into the output folder.
 
 5. Delete the PNG images
 
 ## TODO: 
 * Doesn't support special characters like Arabic
 * Add the text in a seperate area instead of a whole seperate image
-* Detect a single line, and then feed it into translator instead of translating every single word (increases efficiency and accuracy)
 * Make font size adjust to the bounding box width & height.
 * Collect all the images and combine them into the PDF (for now, it's just outputting to folder `./src/PNGImgsOutput`)
 * Remove certain pages 
