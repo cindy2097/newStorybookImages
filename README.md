@@ -31,3 +31,9 @@ Example (Linux): <br>
 4. Link the new PNG images back into a PDF format, and then save the PDF into the output folder.
 
 5. Delete the PNG images
+
+## TODO: 
+* Collect all the images and combine them into the PDF (for now, it's just outputting to folder `./src/PNGImgsOutput`)
+* Make font size adjust to the bounding box width & height.
+* Improve contour system (sometimes it doesn't recognize all the words in the page)
+* Font recognizer.
