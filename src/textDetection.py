@@ -1,3 +1,6 @@
+from fnmatch import translate
+
+from matplotlib.pyplot import contour
 import cv2               # Image processing and countour detection
 import pytesseract       # OCR 
 import os                # Path
@@ -37,28 +40,43 @@ def getCountours (path):
     contours, _ = cv2.findContours(dilation, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     return contours, img.copy()
 
+def removeChar(text): 
+    special_char_dict = {
+        "’": "'",
+        "”": "'",
+        "“": "'",
+        "—": "-"
+    }
+    for key in special_char_dict:
+        text = text.replace(key, special_char_dict[key])
+   
+    return text 
+
 def translateText (text, target_language): 
-    # How to convert target_language (ex: turkish) to language token?
-    # What is the auth token?
-    auth_token = src.SensitiveInfo.auth_token 
+    if text != "":
+        # How to convert target_language (ex: turkish) to language token?
+        # What is the auth token?
+        auth_token = src.SensitiveInfo.auth_token 
 
-    url = "https://platform.neuralspace.ai/api/translation/v1/translate"
-    headers = {}
-    headers["Accept"] = "application/json, text/plain, */*"
-    headers["authorization"] = auth_token
-    headers["Content-Type"] = "application/json;charset=UTF-8"
+        url = "https://platform.neuralspace.ai/api/translation/v1/translate"
+        headers = {}
+        headers["Accept"] = "application/json, text/plain, */*"
+        headers["authorization"] = auth_token
+        headers["Content-Type"] = "application/json;charset=UTF-8"
 
-    # send request
-    data = f""" 
-    {{
-        "text": "{text.encode('utf-8')}",
-        "sourceLanguage": "en",
-        "targetLanguage": "{target_language}"
-    }}
-    """
-    resp = requests.post(url, headers=headers, data=data) # This will pause for a while if we send too much requests.
-    response_dict = json.loads(resp.text)
-    return response_dict["data"]["translatedText"]
+        # send request
+        data = f""" 
+        {{
+            "text": "{removeChar(text)}",
+            "sourceLanguage": "en",
+            "targetLanguage": "{target_language}"
+        }}
+        """
+        resp = requests.post(url, headers=headers, data=data)
+        response_dict = json.loads(resp.text)
+        return response_dict["data"]["translatedText"]
+    else: 
+        return ""
 
 def get_dominant_color(pil_img, palette_size=16):
     # Resize image to speed up processing
@@ -79,6 +97,7 @@ def get_dominant_color(pil_img, palette_size=16):
 def processText (path, target_language): 
     result = [] 
     total_text = "" 
+    outerIndex = 0
     for filename in os.listdir(path):
         if not filename.endswith(".jpg"):
             continue
@@ -93,6 +112,7 @@ def processText (path, target_language):
         arr.append(im2)
         arr.append(index)   
         total_text_page = ""
+        indexInner = 0
         for cnt in tqdm(contours, desc="Processing text of image " + str(index) + ": "):
             x, y, w, h = cv2.boundingRect(cnt)
 
@@ -110,18 +130,28 @@ def processText (path, target_language):
             # Apply OCR on the cropped image
             text = re.sub(r'[\x00-\x1f]+', '',  pytesseract.image_to_string(cropped))
             if len(text) <= 1: continue; # no short text
-            total_text_page += text + "[]"
-                        
+
+            if indexInner == len(contours) - 1: total_text_page += text          
+            else: total_text_page += text + "[]"
             # append to array
             arr.append([x, y, w, h, "", r, g, b])
+
+            # Increment index
+            indexInner += 1
+        if len(arr) == 2: continue
         result.append(arr)
-        total_text += total_text_page + "()"
+        if outerIndex == len(os.listdir(path)) - 1: total_text += total_text_page 
+        else: total_text += total_text_page + "()"
+        outerIndex += 1
     
     # Get translation
+    print("Getting Translation...", end="")
     trans = translateText(total_text, target_language)
     for index_page, text_page in enumerate(trans.split("()")):  
         for index_line, text_line in enumerate(text_page.split("[]")): 
             if len(text_line) <= 1: continue
+            if len(result[index_page]) == 2: print(result[index_page])
             result[index_page][index_line+2][4] = text_line.strip()
+    print("Done")
 
     return result
