@@ -1,4 +1,5 @@
 from fnmatch import translate
+from typing import OrderedDict
 
 from matplotlib.pyplot import contour
 import cv2               # Image processing and countour detection
@@ -8,12 +9,12 @@ from tqdm import tqdm    # Progress Bar
 import numpy as np       # average color calculations
 import requests          # For requesting translation to server.
 import json              # For extraction of translation from server
-import src.SensitiveInfo # Sensitive Info (ex: auth token) regarding connection to the server
+import SensitiveInfo     # Sensitive Info (ex: auth token) regarding connection to the server
 import re                # For some reason pytesseract adds in \n and \x0c. This will remove it
 from PIL import Image    # Image class for getting dominant color
 
 # -------------- CHANGE THIS TO YOUR TESSERACT OCR FILE -------------- #
-pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract' 
+pytesseract.pytesseract.tesseract_cmd = "C:\\msys64\\mingw32\\bin\\tesseract.exe" 
 # -------------------------------------------------------------------- #
 
 # most of the code is from https://www.geeksforgeeks.org/text-detection-and-extraction-using-opencv-and-ocr/
@@ -56,7 +57,7 @@ def translateText (text, target_language):
     if text != "":
         # How to convert target_language (ex: turkish) to language token?
         # What is the auth token?
-        auth_token = src.SensitiveInfo.auth_token 
+        auth_token = SensitiveInfo.auth_token 
 
         url = "https://platform.neuralspace.ai/api/translation/v1/translate"
         headers = {}
@@ -96,8 +97,9 @@ def get_dominant_color(pil_img, palette_size=16):
 
 def processText (path, target_language): 
     result = [] 
-    total_text = "" 
-    outerIndex = 0
+    # this is an array of text storing the image index and contour index embedded in it  
+    text_ocr = [] 
+    image_index = 0
     for filename in os.listdir(path):
         if not filename.endswith(".jpg"):
             continue
@@ -111,8 +113,7 @@ def processText (path, target_language):
         arr = []
         arr.append(im2)
         arr.append(index)   
-        total_text_page = ""
-        indexInner = 0
+        contour_index = 0
         for cnt in tqdm(contours, desc="Processing text of image " + str(index) + ": "):
             x, y, w, h = cv2.boundingRect(cnt)
 
@@ -131,27 +132,29 @@ def processText (path, target_language):
             text = re.sub(r'[\x00-\x1f]+', '',  pytesseract.image_to_string(cropped))
             if len(text) <= 1: continue; # no short text
 
-            if indexInner == len(contours) - 1: total_text_page += text          
-            else: total_text_page += text + "[]"
+            # Append to text_ocr
+            text_ocr.append(" ++ ".join([str(image_index), str(contour_index), text]))
+
             # append to array
             arr.append([x, y, w, h, "", r, g, b])
+            contour_index += 1
 
-            # Increment index
-            indexInner += 1
+        # Append to result
         if len(arr) == 2: continue
         result.append(arr)
-        if outerIndex == len(os.listdir(path)) - 1: total_text += total_text_page 
-        else: total_text += total_text_page + "()"
-        outerIndex += 1
-    
+        image_index += 1
+        
     # Get translation
     print("Getting Translation...", end="")
-    trans = translateText(total_text, target_language)
-    for index_page, text_page in enumerate(trans.split("()")):  
-        for index_line, text_line in enumerate(text_page.split("[]")): 
-            if len(text_line) <= 1: continue
-            if len(result[index_page]) == 2: print(result[index_page])
-            result[index_page][index_line+2][4] = text_line.strip()
+    text = " == ".join(text_ocr)
+    translate = translateText(text, target_language).split("==")
+    for text in translate:
+        arr = text.split("++")
+        image_index = int(arr[0])
+        contour_index = int(arr[1])
+        translation = arr[2]
+        result[image_index][contour_index+2][4] = translation
+
     print("Done")
 
     return result

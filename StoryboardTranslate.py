@@ -1,9 +1,10 @@
 import sys              # getting the arguments
 import pdf2image        # Thankfully, this handles most of step 1
 from tqdm import tqdm   # Progress bar!
-import os               # Path
-from src.textDetection import processText # Text detection for 2nd step
-from src.changeImage import changeImage   # Change the image from text detection for 3rd step
+import os, sys          # Path
+sys.path.insert(1, "./src/")
+from textDetection import processText # Text detection for 2nd step
+from changeImage import changeImage   # Change the image from text detection for 3rd step
 import fpdf                               # Used for connecting images to a single pdf
 
 def img_to_pdf (input_dir, output_file): 
@@ -43,7 +44,7 @@ if __name__ == "__main__":
     input_pdf_path = sys.argv[1]
     output_pdf_file = sys.argv[2]
     target_language = input("What's the language you want to convert it to? ") 
-    pdf_cut_begin = int(input("How much pages do you want to remove from the beggining? "))
+    pdf_cut_begin = int(input("How much pages do you want to remove from the beginning? "))
     pdf_cut_end = int(input("How much pages do you want to remove from the end? "))
 
     # First step: Convert PDF into multiple PNG images
@@ -57,7 +58,7 @@ if __name__ == "__main__":
     changeImage(result, target_language)
 
     # Fourth Step: Create PDF based on the images, then save the PDF to the output folder
-    print("Combining images...", end="")
+    print("Converting images to pdf...", end="")
     out_img_dir = os.path.join(os.getcwd(), "src", "PNGImgsOutput")
     img_to_pdf(out_img_dir, output_pdf_file)
     print("Done")
