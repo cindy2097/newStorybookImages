@@ -55,7 +55,7 @@ if __name__ == "__main__":
     result = processText(full_path_img_dir, target_language)
 
     # Third Step: Alter image to for fill bounding box with average color, and with new translation
-    changeImage(result, target_language)
+    changeImage(result)
 
     # Fourth Step: Create PDF based on the images, then save the PDF to the output folder
     print("Converting images to pdf...", end="")

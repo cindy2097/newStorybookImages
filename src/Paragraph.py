@@ -1,13 +1,16 @@
 from PIL import Image    # Image class for getting dominant color
-import re                # For some reason pytesseract adds in \n and \x0c. This will remove it
+import re
+from matplotlib import offsetbox                # For some reason pytesseract adds in \n and \x0c. This will remove it
 import pytesseract       # OCR 
 import cv2               # For drawing circles and rectangles on image
+import string            # 
 
 class BoundingBox: 
     x = -1
     y = -1 
     w = -1
     h = -1
+
     def __init__ (self, x=-1, y=-1, w=-1, h=-1): 
         self.x = x
         self.y = y
@@ -17,18 +20,32 @@ class BoundingBox:
     def __str__ (self):
         return "x: " + str(self.x) + " y: " + str(self.y) + " w: " + str(self.w) + " h: " + str(self.h)
 
+    def apply_offset (self, offset_x=0, offset_y=0): 
+        self.x += offset_x
+        self.y += offset_y
+        return self
+
+    def crop_img (self, img):
+        return img[self.y:self.y+self.h, self.x:self.x+self.w]
+
+    def out_of_bounds (self, img_w, img_h, margin=100):
+        if (self.x + self.w > img_w - margin) or (self.y + self.h > img_h - margin) or self.x < 0 or self.y < 0: 
+            return True
+
+        return False
+
 class Paragraph: 
-    lines = [] # Array of BoundingBox
-    texts = [] # Array of strings that correspond with each line
-    paragraphBox = None # BoundingBox of general Paragraph
-    page = -1           # The page number the paragraph is in
+    lines : list[BoundingBox] = [] # Array of BoundingBox
+    texts : list[str] = [] # Array of strings that correspond with each line
+    paragraphBox : BoundingBox = None # BoundingBox of general Paragraph
+    pageNum = -1           # The page number the paragraph is in
     paragraphId = -1    # The paragraph unique id in the page
     dominant_color = [] # The rgb values of the dominant color
 
     def __init__ (self, lines, page, paragraphId): 
         self.lines = lines
         self.texts = ["" for _ in self.lines]
-        self.page = page
+        self.pageNum = page
         self.paragraphId = paragraphId
         
         # Get paragraph box of the general paragraph using self.lines
@@ -73,7 +90,7 @@ class Paragraph:
         # if we have no useful lines, then reset everything
         if len(self.texts) == 0: 
             self.paragraphBox = 0 
-            self.page = -1
+            self.pageNum = -1
             self.paragraphId = -1
             self.dominant_color = []
             return -1
@@ -89,10 +106,19 @@ class Paragraph:
         
         return self.texts, self.dominant_color     
 
+    def apply_offset (self, offset_x=0, offset_y=0):
+        for index in range(len(self.lines)):
+            self.lines[index].apply_offset(offset_x, offset_y)
+        self.paragraphBox.apply_offset(offset_x, offset_y)        
+        return self
+
+    def out_of_bounds (self, img_w, img_h):
+        return self.paragraphBox.out_of_bounds(img_w, img_h)
+
     def text_to_string (self, text_sep, info_sep): 
         text_lines = [] 
         for index, line in enumerate(self.texts): 
-            string = info_sep.join([str(self.page), str(self.paragraphId), str(index), line]) 
+            string = info_sep.join([str(self.pageNum), str(self.paragraphId), str(index), line]) 
             text_lines.append(string)
         self.text_sep = text_sep
         self.info_sep = info_sep
@@ -108,7 +134,7 @@ class Paragraph:
         
         for line in string.split(lines_sep):
             arr = line.split(infoSep)
-            if int(arr[0]) == self.page and int(arr[1]) == self.paragraphId: 
+            if int(arr[0]) == self.pageNum and int(arr[1]) == self.paragraphId: 
                 self.texts[int(arr[2])] = arr[3]
 
         return self.lines
@@ -120,7 +146,7 @@ class Paragraph:
         return img
 
 class Page: 
-    paragraphs = []
+    paragraphs: list[Paragraph] = []
     original_image = None
 
     def __init__(self, paragraphs, original_image) -> None:

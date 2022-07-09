@@ -140,8 +140,4 @@ def processText (path, target_language):
         page.string_to_text(translated_string)
     print("Done")
 
-    # Debug
-    for page in pages:
-        page.display_page()
-
     return pages
