@@ -85,6 +85,7 @@ def detectParagraphs (lines, page, x_threshold=50):
 
     # Replace each array of points with Paragraph class 
     for index, value in enumerate(arr): 
+        # value is a bunch of bounding boxes that correspond to each line in the paragraph
         arr[index] = Paragraph(value, page, index)        
 
     return arr
@@ -123,7 +124,7 @@ def processText (path, target_language):
         paragraphs = detectParagraphs(lines, index) 
         page = Page(paragraphs, im2)
         page.apply_ocr()
-    
+
         # Append to pages 
         pages.append(page)
         
