@@ -1,9 +1,4 @@
-from fnmatch import translate
-from typing import OrderedDict
-
-from matplotlib.pyplot import contour
 import cv2               # Image processing and countour detection
-import pytesseract       # OCR 
 import os                # Path
 from tqdm import tqdm    # Progress Bar
 import numpy as np       # average color calculations
@@ -11,11 +6,7 @@ import requests          # For requesting translation to server.
 import json              # For extraction of translation from server
 import SensitiveInfo     # Sensitive Info (ex: auth token) regarding connection to the server
 import re                # For some reason pytesseract adds in \n and \x0c. This will remove it
-from PIL import Image    # Image class for getting dominant color
-
-# -------------- CHANGE THIS TO YOUR TESSERACT OCR FILE -------------- #
-pytesseract.pytesseract.tesseract_cmd = "C:\\msys64\\mingw32\\bin\\tesseract.exe" 
-# -------------------------------------------------------------------- #
+from Paragraph import *  # Paragraph class and Bounding Box class
 
 # most of the code is from https://www.geeksforgeeks.org/text-detection-and-extraction-using-opencv-and-ocr/
 def getCountours (path): 
@@ -50,7 +41,7 @@ def removeChar(text):
     }
     for key in special_char_dict:
         text = text.replace(key, special_char_dict[key])
-   
+
     return text 
 
 def translateText (text, target_language): 
@@ -79,28 +70,30 @@ def translateText (text, target_language):
     else: 
         return ""
 
-def get_dominant_color(pil_img, palette_size=16):
-    # Resize image to speed up processing
-    img = pil_img.copy()
-    img.thumbnail((100, 100))
+def detectParagraphs (lines, page, x_threshold=50): 
+    # Given a set of points, give a bounding box of each point
+    arr = [] 
+    for line in lines:
+        if len(arr) == 0:
+            arr.append([line])
+            continue
+        for index, value in enumerate(arr): 
+            if abs(value[0].x - line.x) <= x_threshold:
+                arr[index].append(line)
+                break
+            if index == len(arr) - 1: arr.append([line])
 
-    # Reduce colors (uses k-means internally)
-    paletted = img.convert('P', palette=Image.ADAPTIVE, colors=palette_size)
+    # Replace each array of points with Paragraph class 
+    for index, value in enumerate(arr): 
+        arr[index] = Paragraph(value, page, index)        
 
-    # Find the color that occurs most often
-    palette = paletted.getpalette()
-    color_counts = sorted(paletted.getcolors(), reverse=True)
-    palette_index = color_counts[0][1]
-    dominant_color = palette[palette_index*3:palette_index*3+3]
-
-    return dominant_color
+    return arr
 
 def processText (path, target_language): 
-    result = [] 
-    # this is an array of text storing the image index and contour index embedded in it  
-    text_ocr = [] 
-    image_index = 0
-    for filename in os.listdir(path):
+    # This is the actual processtext array that stores an array of paragraphs 
+    pages = []
+
+    for filename in tqdm(os.listdir(path), desc="Processing Pages", unit="page"):
         if not filename.endswith(".jpg"):
             continue
         index = int(re.findall(r'\d+', filename.split(".")[0])[0])
@@ -109,52 +102,46 @@ def processText (path, target_language):
         # get countours 
         contours, im2 = getCountours(full_path)
 
-        # Initialize variables 
-        arr = []
-        arr.append(im2)
-        arr.append(index)   
-        contour_index = 0
-        for cnt in tqdm(contours, desc="Processing text of image " + str(index) + ": "):
+        # Array that stores x, y, w, and h of the line
+        lines = []
+
+        for cnt in contours:
             x, y, w, h = cv2.boundingRect(cnt)
 
             # don't have our bounding boxes too big!
             if h > im2.shape[0] * 0.5 or w > im2.shape[1] * 0.5:
                 continue
+
+            # don't have our bounding boxes too small!
+            if w < im2.shape[0] * 0.01 or h < im2.shape[1] * 0.01:
+                continue
         
-            # Cropping the text block for giving input to OCR
-            cropped = im2[y:y + h, x:x + w]
-            
-            # dominant color
-            dominant_color = get_dominant_color(Image.fromarray(cropped))
-            r, g, b = dominant_color 
-            
-            # Apply OCR on the cropped image
-            text = re.sub(r'[\x00-\x1f]+', '',  pytesseract.image_to_string(cropped))
-            if len(text) <= 1: continue; # no short text
+            # Append points
+            lines.append(BoundingBox(x, y, w, h))
 
-            # Append to text_ocr
-            text_ocr.append(" ++ ".join([str(image_index), str(contour_index), text]))
-
-            # append to array
-            arr.append([x, y, w, h, "", r, g, b])
-            contour_index += 1
-
-        # Append to result
-        if len(arr) == 2: continue
-        result.append(arr)
-        image_index += 1
+        # Get paragraph and page
+        paragraphs = detectParagraphs(lines, index) 
+        page = Page(paragraphs, im2)
+        page.apply_ocr()
+    
+        # Append to pages 
+        pages.append(page)
         
-    # Get translation
-    print("Getting Translation...", end="")
-    text = " == ".join(text_ocr)
-    translate = translateText(text, target_language).split("==")
-    for text in translate:
-        arr = text.split("++")
-        image_index = int(arr[0])
-        contour_index = int(arr[1])
-        translation = arr[2]
-        result[image_index][contour_index+2][4] = translation
-
+    # ----- Translation ---- 
+    print("Translating Text...", end="")
+    text_sep = " +++ "
+    info_sep = " === "
+    send_string = [] 
+    for page in pages:
+        send_string.append(page.text_to_string(text_sep, info_sep))
+    send_string = text_sep.join(send_string)
+    translated_string = translateText(send_string, target_language)
+    for page in pages: 
+        page.string_to_text(translated_string)
     print("Done")
 
-    return result
+    # Debug
+    for page in pages:
+        page.display_page()
+
+    return pages
