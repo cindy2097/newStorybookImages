@@ -56,9 +56,8 @@ def changeImage (processTextResult:list[Page]):
             for el in elim: 
                 options.remove(el)
             
-            # If there's no boxes left, then complain 
+            # If there's no boxes left, then continue 
             if len(options) == 0:
-                print("Unable to find suitable location")
                 continue
 
             # For the rest of the boxes, assign a score to them that has the most average color closer to paragraph dominant color
