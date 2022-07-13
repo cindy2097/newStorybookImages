@@ -6,6 +6,7 @@ sys.path.insert(1, "./src/")
 from textDetection import processText # Text detection for 2nd step
 from changeImage import changeImage   # Change the image from text detection for 3rd step
 import fpdf                               # Used for connecting images to a single pdf
+from termcolor import colored             # For color on terminal
 
 def img_to_pdf (input_dir, output_file): 
     pdf = fpdf.FPDF('L', 'mm', 'A4')
@@ -22,7 +23,7 @@ def img_to_pdf (input_dir, output_file):
 def convertPDFToImage (path, cut_begin, cut_end): 
     for file in os.listdir(os.path.join(os.getcwd(), "src", "PNGImgs")):
         if file.endswith(".jpg"):
-            print("Images already extracted.")
+            print(colored("Skipping Image Extraction! Using images in src/PNGImgs directory. (pages removed from beginning/end are not executed)", "red"))
             return
     print("Converting pdf to images...", end="")
     pages = pdf2image.convert_from_path(path)

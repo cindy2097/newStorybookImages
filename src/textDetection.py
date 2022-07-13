@@ -130,8 +130,8 @@ def processText (path, target_language):
         
     # ----- Translation ---- 
     print("Translating Text...", end="")
-    text_sep = " +++ "
-    info_sep = " === "
+    text_sep = " || "
+    info_sep = " && "
     send_string = [] 
     for page in pages:
         send_string.append(page.text_to_string(text_sep, info_sep))

@@ -133,6 +133,7 @@ class Paragraph:
             exit(-1)
         
         for line in string.split(lines_sep):
+            if line.strip() == "": continue
             arr = line.split(infoSep)
             if int(arr[0]) == self.pageNum and int(arr[1]) == self.paragraphId: 
                 self.texts[int(arr[2])] = arr[3]
@@ -173,7 +174,8 @@ class Page:
     def text_to_string (self, text_sep, info_sep):
         arr = [] 
         for paragraph in self.paragraphs:
-            arr.append(paragraph.text_to_string(text_sep,info_sep))
+            info = paragraph.text_to_string(text_sep,info_sep)
+            arr.append(info)
         return text_sep.join(arr)
 
     def string_to_text (self, string): 

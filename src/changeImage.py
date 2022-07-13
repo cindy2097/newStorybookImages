@@ -59,7 +59,7 @@ def changeImage (processTextResult:list[Page]):
             # If there's no boxes left, then complain 
             if len(options) == 0:
                 print("Unable to find suitable location")
-                exit(-1)
+                continue
 
             # For the rest of the boxes, assign a score to them that has the most average color closer to paragraph dominant color
             lowest_score = -1 
