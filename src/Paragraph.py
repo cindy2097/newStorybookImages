@@ -1,9 +1,11 @@
 from PIL import Image    # Image class for getting dominant color
-import re
-from matplotlib import offsetbox                # For some reason pytesseract adds in \n and \x0c. This will remove it
+import re                # For some reason pytesseract adds in \n and \x0c. This will remove it
 import pytesseract       # OCR 
 import cv2               # For drawing circles and rectangles on image
-import string            # 
+import requests          # For requesting translation to server.
+import json              # For extraction of translation from server
+import SensitiveInfo     # Sensitive Info (ex: auth token) regarding connection to the server
+from time import sleep   # For creating downtime between each API request
 
 class BoundingBox: 
     x = -1
@@ -42,11 +44,12 @@ class Paragraph:
     paragraphId = -1    # The paragraph unique id in the page
     dominant_color = [] # The rgb values of the dominant color
 
-    def __init__ (self, lines, page, paragraphId): 
+    def __init__ (self, lines, page, paragraphId, target_lang): 
         self.lines = lines
         self.texts = ["" for _ in self.lines]
         self.pageNum = page
         self.paragraphId = paragraphId
+        self.target_lang = target_lang
         
         # Get paragraph box of the general paragraph using self.lines
         self.paragraphBox = BoundingBox()
@@ -66,6 +69,45 @@ class Paragraph:
         pytesseract.pytesseract.tesseract_cmd = "C:\\msys64\\mingw32\\bin\\tesseract.exe" 
         # -------------------------------------------------------------------- #
 
+    def removeChar(self, text): 
+        special_char_dict = {
+            "’": "'",
+            "”": "'",
+            "“": "'",
+            "—": "-"
+        }
+        for key in special_char_dict:
+            text = text.replace(key, special_char_dict[key])
+
+        return text 
+
+    def translateText (self, text, target_language, delay=0.5): 
+        if text != "":
+            # How to convert target_language (ex: turkish) to language token?
+            # What is the auth token?
+            auth_token = SensitiveInfo.auth_token 
+
+            url = "https://platform.neuralspace.ai/api/translation/v1/translate"
+            headers = {}
+            headers["Accept"] = "application/json, text/plain, */*"
+            headers["authorization"] = auth_token
+            headers["Content-Type"] = "application/json;charset=UTF-8"
+
+            # send request
+            data = f""" 
+            {{
+                "text": "{self.removeChar(text)}",
+                "sourceLanguage": "en",
+                "targetLanguage": "{target_language}"
+            }}
+            """
+            sleep(delay) # If we send too much requests at once, then the server won't respond to the overflow of requests
+            resp = requests.post(url, headers=headers, data=data)
+            response_dict = json.loads(resp.text)
+            return response_dict["data"]["translatedText"]
+        else: 
+            return ""
+    
     def process_lines (self, original_img): 
         # Initialize delete variable (delete lines if no detect text)
         index_delete = []
@@ -76,6 +118,13 @@ class Paragraph:
         
             # Apply OCR on the cropped image
             text = re.sub(r'[\x00-\x1f]+', '',  pytesseract.image_to_string(cropped))
+            if text.strip() == "": 
+                index_delete.append(index)
+                continue
+
+            # Translate Text
+            text = self.translateText(text, self.target_lang, delay=0) # setting delay to 0 because pytesseract.image_to_string already includes that delay for us
+
             self.texts[index] = text
 
             # Check if we should delete index
@@ -123,22 +172,6 @@ class Paragraph:
         self.text_sep = text_sep
         self.info_sep = info_sep
         return text_sep.join(text_lines)
-
-    def string_to_text (self, string):
-        try:
-            lines_sep = self.text_sep.strip()
-            infoSep = self.info_sep.strip()
-        except Exception:
-            print("Error getting line seperator and info seperator! Did you call lines_to_string() before calling this function?")
-            exit(-1)
-        
-        for line in string.split(lines_sep):
-            if line.strip() == "": continue
-            arr = line.split(infoSep)
-            if int(arr[0]) == self.pageNum and int(arr[1]) == self.paragraphId: 
-                self.texts[int(arr[2])] = arr[3]
-
-        return self.lines
 
     def draw_text_box (self, img):
         for index in range(len(self.lines)):
