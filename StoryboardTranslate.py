@@ -28,7 +28,7 @@ def convertPDFToImage (path, cut_begin, cut_end):
     print("Converting pdf to images...", end="")
     pages = pdf2image.convert_from_path(path)
     for index, page in enumerate(pages):
-        if index <= cut_begin:
+        if index < cut_begin:
             continue
         if index > len(pages) - cut_end:
             break 
