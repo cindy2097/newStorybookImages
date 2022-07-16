@@ -10,14 +10,22 @@ from termcolor import colored             # For color on terminal
 
 def img_to_pdf (input_dir, output_file): 
     pdf = fpdf.FPDF('L', 'mm', 'A4')
+    
+    list_dir = os.listdir(input_dir)
+    sorted_arr = {}
+    for path in list_dir:
+        full_path = os.path.join(input_dir, path)
+        index = int(str(path).split(".")[0][4:])
+        sorted_arr[index] = full_path 
+    print(sorted_arr)
+
     # imagelist is the list with all image filenames
-    for image in sorted(os.listdir(input_dir)):
+    for key in sorted(sorted_arr.keys()):
+        image = sorted_arr[key]
         if not image.endswith(".jpg"):
             continue
-        full_path = os.path.join(input_dir, image)
         pdf.add_page()
-        #the 300 and 250 is the size for the image to be blown up to
-        pdf.image(full_path,0,0,300,225)
+        pdf.image(image,0,0,300,225) #the 300 and 250 is the size for the image to be blown up to
     pdf.output(output_file, "F")
 
 def convertPDFToImage (path, cut_begin, cut_end): 
