@@ -56,10 +56,15 @@ if __name__ == "__main__":
     pdf_cut_begin = int(input("How much pages do you want to remove from the beginning? "))
     pdf_cut_end = int(input("How much pages do you want to remove from the end? "))
 
+    # Initializes all the directories
+    full_path_img_dir = os.path.join(os.getcwd(), "src", "PNGImgs")
+    pages_cache_dir = os.path.join(os.getcwd(), "src", "PagesCache")
+    out_img_dir = os.path.join(os.getcwd(), "src", "PNGImgsOutput")
+
     # check if cache 
     pages = None
-    for filename in os.listdir(os.path.join(os.getcwd(), "src", "PagesCache")):
-        full_path = os.path.join(os.getcwd(), "src", "PagesCache", filename)
+    for filename in os.listdir(pages_cache_dir):
+        full_path = os.path.join(pages_cache_dir, filename)
         print(colored("Skipping text detection! Using cache.", "red"))
         with open(full_path, "rb") as f:
             pages = pickle.load(f)
@@ -71,7 +76,6 @@ if __name__ == "__main__":
         convertPDFToImage(input_pdf_path, pdf_cut_begin, pdf_cut_end) 
 
         # Second step: get text detection file to get bounding boxes, translation, and average color 
-        full_path_img_dir = os.path.join(os.getcwd(), "src", "PNGImgs")
         pages = processText(full_path_img_dir, target_language)
 
     # Third Step: Alter image to for fill bounding box with average color, and with new translation
@@ -79,13 +83,13 @@ if __name__ == "__main__":
 
     # Fourth Step: Create PDF based on the images, then save the PDF to the output folder
     print("Converting images to pdf...", end="")
-    out_img_dir = os.path.join(os.getcwd(), "src", "PNGImgsOutput")
     img_to_pdf(out_img_dir, output_pdf_file)
     print("Done")
 
     # Fifth Step: Delete contents in directories: PNGImgs, PNGImgsOutput
     print("Remove contents from directories...",end="")
-    # [os.remove(os.path.join(full_path_img_dir, file)) for file in os.listdir(full_path_img_dir)]
-    # [os.remove(os.path.join(out_img_dir, file)) for file in os.listdir(out_img_dir)]
+    [os.remove(os.path.join(full_path_img_dir, file)) for file in os.listdir(full_path_img_dir)]
+    [os.remove(os.path.join(out_img_dir, file)) for file in os.listdir(out_img_dir)]
+    [os.remove(os.path.join(pages_cache_dir, file)) for file in os.listdir(pages_cache_dir)]
     print("Done")
     
