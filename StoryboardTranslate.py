@@ -88,8 +88,8 @@ if __name__ == "__main__":
 
     # Fifth Step: Delete contents in directories: PNGImgs, PNGImgsOutput
     print("Remove contents from directories...",end="")
-    [os.remove(os.path.join(full_path_img_dir, file)) for file in os.listdir(full_path_img_dir)]
-    [os.remove(os.path.join(out_img_dir, file)) for file in os.listdir(out_img_dir)]
+    # [os.remove(os.path.join(full_path_img_dir, file)) for file in os.listdir(full_path_img_dir)]
+    # [os.remove(os.path.join(out_img_dir, file)) for file in os.listdir(out_img_dir)]
     [os.remove(os.path.join(pages_cache_dir, file)) for file in os.listdir(pages_cache_dir)]
     print("Done")
     

@@ -34,7 +34,7 @@ def getCountours (path):
 
 
 
-def detectParagraphs (lines, page, target_lang, x_threshold=50): 
+def detectParagraphs (lines, page, target_lang, image, x_threshold=50): 
     # Given a set of points, give a bounding box of each point
     arr = [] 
     for line in lines:
@@ -48,11 +48,22 @@ def detectParagraphs (lines, page, target_lang, x_threshold=50):
             if index == len(arr) - 1: arr.append([line])
 
     # Replace each array of points with Paragraph class 
+    output = []
     for index, value in enumerate(arr): 
         # value is a bunch of bounding boxes that correspond to each line in the paragraph
-        arr[index] = Paragraph(value, page, index, target_lang)        
+        para = Paragraph(value, page, index, target_lang)
 
-    return arr
+        # check if paragraph is too big or too small. If it is, discard paragraph
+        if (para.paragraphBox.w > image.shape[0] * 0.5) or (para.paragraphBox.h > image.shape[1] * 0.5): 
+            continue
+        
+        if (para.paragraphBox.w < image.shape[0] * 0.05) or (para.paragraphBox.h < image.shape[1] * 0.05):
+            continue
+            
+        # Append output
+        output.append(para)
+
+    return output 
 
 def processText (path, target_language): 
     # This is the actual processtext array that stores an array of paragraphs 
@@ -73,19 +84,11 @@ def processText (path, target_language):
         for cnt in contours:
             x, y, w, h = cv2.boundingRect(cnt)
 
-            # don't have our bounding boxes too big!
-            if h > im2.shape[0] * 0.5 or w > im2.shape[1] * 0.5:
-                continue
-
-            # don't have our bounding boxes too small!
-            if w < im2.shape[0] * 0.01 or h < im2.shape[1] * 0.01:
-                continue
-        
             # Append points
             lines.append(BoundingBox(x, y, w, h))
 
         # Get paragraph and page
-        paragraphs = detectParagraphs(lines, index, target_language) 
+        paragraphs = detectParagraphs(lines, index, target_language, im2) 
         page = Page(paragraphs, im2)
         page.apply_ocr()
 

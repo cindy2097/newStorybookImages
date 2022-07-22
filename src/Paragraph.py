@@ -178,9 +178,7 @@ class Paragraph:
 
     def draw_text_box (self, img):
         for index in range(len(self.lines)):
-            print("text", self.texts[index])
             img = cv2.putText(img, self.texts[index], (self.lines[index].x, self.lines[index].y), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=2) 
-        print("x:", self.paragraphBox.x, "y:", self.paragraphBox.y, "w:", self.paragraphBox.w, "h:", self.paragraphBox.h)
         img = cv2.rectangle(img, (self.paragraphBox.x, self.paragraphBox.y), (self.paragraphBox.x + self.paragraphBox.w, self.paragraphBox.y + self.paragraphBox.h), (0,0,255), 5)
         return img
 
