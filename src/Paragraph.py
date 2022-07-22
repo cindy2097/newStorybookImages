@@ -30,8 +30,11 @@ class BoundingBox:
     def crop_img (self, img):
         return img[self.y:self.y+self.h, self.x:self.x+self.w]
 
+    def drawBoundingBox (self, img): 
+        return cv2.rectangle(img, (self.x, self.y), (self.x + self.w, self.y + self.h), (0,0,0), 5)
+
     def out_of_bounds (self, img_w, img_h, margin=100):
-        if (self.x + self.w > img_w - margin) or (self.y + self.h > img_h - margin) or self.x < 0 or self.y < 0: 
+        if (self.x + self.w > img_w + margin) or (self.y + self.h > img_h + margin) or self.x < 0 or self.y < 0: 
             return True
 
         return False

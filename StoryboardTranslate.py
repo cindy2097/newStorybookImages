@@ -7,6 +7,7 @@ from textDetection import processText # Text detection for 2nd step
 from changeImage import changeImage   # Change the image from text detection for 3rd step
 import fpdf                               # Used for connecting images to a single pdf
 from termcolor import colored             # For color on terminal
+import pickle                         # For reading cache of pages
 
 def img_to_pdf (input_dir, output_file): 
     pdf = fpdf.FPDF('L', 'mm', 'A4')
@@ -17,7 +18,6 @@ def img_to_pdf (input_dir, output_file):
         full_path = os.path.join(input_dir, path)
         index = int(str(path).split(".")[0][4:])
         sorted_arr[index] = full_path 
-    print(sorted_arr)
 
     # imagelist is the list with all image filenames
     for key in sorted(sorted_arr.keys()):
@@ -56,15 +56,26 @@ if __name__ == "__main__":
     pdf_cut_begin = int(input("How much pages do you want to remove from the beginning? "))
     pdf_cut_end = int(input("How much pages do you want to remove from the end? "))
 
-    # First step: Convert PDF into multiple PNG images
-    convertPDFToImage(input_pdf_path, pdf_cut_begin, pdf_cut_end) 
+    # check if cache 
+    pages = None
+    for filename in os.listdir(os.path.join(os.getcwd(), "src", "PagesCache")):
+        full_path = os.path.join(os.getcwd(), "src", "PagesCache", filename)
+        print(colored("Skipping text detection! Using cache.", "red"))
+        with open(full_path, "rb") as f:
+            pages = pickle.load(f)
+            break
 
-    # Second step: get text detection file to get bounding boxes, translation, and average color 
-    full_path_img_dir = os.path.join(os.getcwd(), "src", "PNGImgs")
-    result = processText(full_path_img_dir, target_language)
+    # If we do not have cache, then generate the pages manually
+    if pages == None: 
+        # First step: Convert PDF into multiple PNG images
+        convertPDFToImage(input_pdf_path, pdf_cut_begin, pdf_cut_end) 
+
+        # Second step: get text detection file to get bounding boxes, translation, and average color 
+        full_path_img_dir = os.path.join(os.getcwd(), "src", "PNGImgs")
+        pages = processText(full_path_img_dir, target_language)
 
     # Third Step: Alter image to for fill bounding box with average color, and with new translation
-    changeImage(result)
+    changeImage(pages)
 
     # Fourth Step: Create PDF based on the images, then save the PDF to the output folder
     print("Converting images to pdf...", end="")
@@ -74,7 +85,7 @@ if __name__ == "__main__":
 
     # Fifth Step: Delete contents in directories: PNGImgs, PNGImgsOutput
     print("Remove contents from directories...",end="")
-    [os.remove(os.path.join(full_path_img_dir, file)) for file in os.listdir(full_path_img_dir)]
-    [os.remove(os.path.join(out_img_dir, file)) for file in os.listdir(out_img_dir)]
+    # [os.remove(os.path.join(full_path_img_dir, file)) for file in os.listdir(full_path_img_dir)]
+    # [os.remove(os.path.join(out_img_dir, file)) for file in os.listdir(out_img_dir)]
     print("Done")
     

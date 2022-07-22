@@ -71,26 +71,39 @@ def changeImage (processTextResult:list[Page]):
                     score = lowest_score
                     best_para = option
             bb_best = best_para.paragraphBox
-
+            
             #============== Add Translated Text to Bounding Box ==============#
             # get best font size 
-            img_fraction = 0.95
             fontpath = os.path.join(os.getcwd(), "src", "Fonts", "ArialUnicodeMs.ttf")
             optimal_font_size = 1
             font = ImageFont.truetype(fontpath, optimal_font_size)
 
-            # get largest text
-            largest_text = ""
+            # Combine text
+            entire_text = ""
             for text in best_para.texts: 
-                if len(text) > len(largest_text): 
-                    largest_text = text
+                entire_text += text + "\n"
 
             # Adjust font according to height and width
-            font_dim_text = font.getsize(largest_text)
-            while (font_dim_text[0] < img_fraction * bb_best.w) and (font_dim_text[1] < img_fraction * bb_best.h):
+            img = bb_best.drawBoundingBox(img)
+            font_dim_text = font.getbbox(entire_text)
+            height = font_dim_text[1] - font_dim_text[3]
+            width = font_dim_text[2] - font_dim_text[0]
+            
+            while (width < bb_best.w * 2):
                 optimal_font_size += 1 
                 font = ImageFont.truetype(fontpath, optimal_font_size)
-                font_dim_text = font.getsize(largest_text)
+
+                font_dim_text = font.getbbox(entire_text)
+                height = font_dim_text[1] - font_dim_text[3]
+                width = font_dim_text[2] - font_dim_text[0]
+
+            while (height > bb_best.h): 
+                optimal_font_size -= 1 
+                font = ImageFont.truetype(fontpath, optimal_font_size)
+
+                font_dim_text = font.getbbox(entire_text)
+                height = font_dim_text[1] - font_dim_text[3]
+                width = font_dim_text[2] - font_dim_text[0]
 
             # Fill in background color
             img[bb_best.y : bb_best.y + bb_best.h, bb_best.x : bb_best.x + bb_best.w, 0] = best_para.dominant_color[0]
@@ -105,10 +118,7 @@ def changeImage (processTextResult:list[Page]):
             # Add text
             img_pil = Image.fromarray(img)
             draw = ImageDraw.Draw(img_pil)
-            for index in range(len(best_para.lines)):
-                bb = best_para.lines[index]
-                text = best_para.texts[index]
-                draw.text((bb.x, bb.y + (bb.h/2)), text, fill=color, font=font)
+            draw.text((bb_best.x, bb_best.y), entire_text, fill=color, font=font)
             img = np.array(img_pil)
 
             # set page number

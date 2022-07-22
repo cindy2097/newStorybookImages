@@ -1,7 +1,9 @@
-import cv2               # Image processing and countour detection
-import os                # Path
-from tqdm import tqdm    # Progress Bar
-import numpy as np       # average color calculations
+import cv2                      # Image processing and countour detection
+import os                       # Path
+from tqdm import tqdm           # Progress Bar
+import numpy as np              # average color calculations
+import pickle                   # For caching detection (brings it MUCH easier to changeImage.py)
+from termcolor import colored   # For color on terminal (used to send out warnings)
 
 import re                # For some reason pytesseract adds in \n and \x0c. This will remove it
 from Paragraph import *  # Paragraph class and Bounding Box class
@@ -89,5 +91,9 @@ def processText (path, target_language):
 
         # Append to pages 
         pages.append(page)
+    
+    # cache pages
+    with open(os.path.join(os.getcwd(), "src", "PagesCache", "Page.pkl"), "wb") as f: # "wb" because we want to write in binary mode
+        pickle.dump(pages, f)
         
     return pages
