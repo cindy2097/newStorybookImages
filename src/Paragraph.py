@@ -5,6 +5,7 @@ import cv2               # For drawing circles and rectangles on image
 import requests          # For requesting translation to server.
 import json              # For extraction of translation from server
 import SensitiveInfo     # Sensitive Info (ex: auth token) regarding connection to the server
+from copy import deepcopy# For deep copying images
 from time import sleep   # For creating downtime between each API request
 
 class BoundingBox: 
@@ -36,9 +37,8 @@ class BoundingBox:
     def out_of_bounds (self, img_w, img_h, margin=100):
         if (self.x + self.w > img_w + margin) or (self.y + self.h > img_h + margin) or self.x < 0 or self.y < 0: 
             return True
-
         return False
-
+    
 class Paragraph: 
     lines : list[BoundingBox] = [] # Array of BoundingBox
     texts : list[str] = [] # Array of strings that correspond with each line
@@ -46,6 +46,7 @@ class Paragraph:
     pageNum = -1           # The page number the paragraph is in
     paragraphId = -1    # The paragraph unique id in the page
     dominant_color = [] # The rgb values of the dominant color
+    translated = "" # The translated text of the paragraph  
 
     def __init__ (self, lines, page, paragraphId, target_lang): 
         self.lines = lines
@@ -85,7 +86,7 @@ class Paragraph:
         return text 
 
     def translateText (self, text, target_language, delay=0.5): 
-        if text != "":
+        if text.strip() != "":
             # How to convert target_language (ex: turkish) to language token?
             # What is the auth token?
             auth_token = SensitiveInfo.auth_token 
@@ -115,7 +116,10 @@ class Paragraph:
         # Initialize delete variable (delete lines if no detect text)
         index_delete = []
 
-        for index, bb in enumerate(self.lines):
+        def order_by_y (elem):
+            return elem.y
+
+        for index, bb in enumerate(sorted(self.lines, key=order_by_y)):
             # Crop the image
             cropped = original_img[bb.y:bb.y + bb.h, bb.x:bb.x + bb.w]
         
@@ -125,20 +129,21 @@ class Paragraph:
                 index_delete.append(index)
                 continue
 
-            # Translate Text
-            text = self.translateText(text, self.target_lang, delay=0) # setting delay to 0 because pytesseract.image_to_string already includes that delay for us
-
+            # add total text
             self.texts[index] = text
 
             # Check if we should delete index
             if len(text) <= 3: 
                 index_delete.append(index)
 
+        # get translated text
+        self.translated = self.translateText(" ".join(self.texts), self.target_lang, delay=0.2)
+
         # delete everything from index array
         for num, index in enumerate(index_delete):
             self.texts.pop(index-num)
             self.lines.pop(index-num)
-        
+
         # if we have no useful lines, then reset everything
         if len(self.texts) == 0: 
             self.paragraphBox = 0 
@@ -177,7 +182,9 @@ class Paragraph:
         return text_sep.join(text_lines)
 
     def draw_text_box (self, img):
-        for index in range(len(self.lines)):
+        def order_by_y (elem):
+            return elem.y
+        for index, _ in enumerate(sorted(self.lines, key=order_by_y)):
             img = cv2.putText(img, self.texts[index], (self.lines[index].x, self.lines[index].y), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=2) 
         img = cv2.rectangle(img, (self.paragraphBox.x, self.paragraphBox.y), (self.paragraphBox.x + self.paragraphBox.w, self.paragraphBox.y + self.paragraphBox.h), (0,0,255), 5)
         return img

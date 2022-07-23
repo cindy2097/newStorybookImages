@@ -5,13 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: File",
+            "name": "New Storybook Images Run",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
+            "program": "${workspaceFolder}\\StoryboardTranslate.py",
+            "console": "externalTerminal",
             "justMyCode": true,
-            "pythonArgs": [".\\input\\GreenEggsHam.pdf", ".\\output\\Output.pdf"]
+            "args": ["${workspaceFolder}\\input\\decision.pdf", "${workspaceFolder}\\output\\Output.pdf"]
         }
     ]
 }

@@ -32,8 +32,6 @@ def getCountours (path):
     contours, _ = cv2.findContours(dilation, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     return contours, img.copy()
 
-
-
 def detectParagraphs (lines, page, target_lang, image, x_threshold=50): 
     # Given a set of points, give a bounding box of each point
     arr = [] 
@@ -42,6 +40,9 @@ def detectParagraphs (lines, page, target_lang, image, x_threshold=50):
             arr.append([line])
             continue
         for index, value in enumerate(arr): 
+            # If bounding boxes are TOO similar
+            if abs(value[0].x - line.x) + abs(value[0].y - line.y) + abs(value[0].w - line.w) + abs(value[0].h - line.h) < 20:
+                continue 
             if abs(value[0].x - line.x) <= x_threshold:
                 arr[index].append(line)
                 break

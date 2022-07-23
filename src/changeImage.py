@@ -2,11 +2,12 @@ from re import I
 import cv2                # Image processing and countour detection
 import os                 # Path
 from tqdm import tqdm     # Progress Bar
-import math               # Math operations for calculating contrast
+import math               # Math operations for calculating contrast and floor function
 from PIL import ImageDraw # Library for drawing
 from PIL import ImageFont # Library for drawing 
 from PIL import Image     # Library for drawing
-import numpy as np        # For image conversion 
+import numpy as np
+from zmq import EVENT_MONITOR_STOPPED        # For image conversion 
 from Paragraph import *   # Import Paragraph, BoundingBox, and Page classes
 from typing import cast   # To enable accurate and helpful autocomplete during developing :) 
 from copy import deepcopy # For deepcopying the bounding boxes for comparison
@@ -29,6 +30,11 @@ def contrast (rgb1, rgb2):
     brightest = max(lum1, lum2)
     darkest = min(lum1, lum2)
     return (brightest + 0.05) / (darkest + 0.05)
+
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 def changeImage (processTextResult:list[Page]): 
     for page in tqdm(processTextResult, desc="Changing image: "): 
@@ -75,35 +81,54 @@ def changeImage (processTextResult:list[Page]):
             #============== Add Translated Text to Bounding Box ==============#
             # get best font size 
             fontpath = os.path.join(os.getcwd(), "src", "Fonts", "ArialUnicodeMs.ttf")
-            optimal_font_size = 1
+            optimal_font_size = 14
+            line_height_px = 80 # Average line height pixel
             font = ImageFont.truetype(fontpath, optimal_font_size)
 
-            # Combine text
-            entire_text = ""
-            for text in best_para.texts: 
-                entire_text += text + "\n"
+            # Get translated text            
+            entire_text = best_para.translated
+            
+            # Split text according to the number of lines
+            split = entire_text.split(" ") 
+            text_temp = []
+            for chunk in chunks(split, math.ceil(len(split) / round(bb_best.h / line_height_px))):
+                text_temp.append(" ".join(chunk)) 
+            entire_text = "\n".join(text_temp)
 
             # Adjust font according to height and width
+            pixel_margin = 50
             img = bb_best.drawBoundingBox(img)
-            font_dim_text = font.getbbox(entire_text)
-            height = font_dim_text[1] - font_dim_text[3]
+            font_dim_text = font.getlength(entire_text)
             width = font_dim_text[2] - font_dim_text[0]
-            
-            while (width < bb_best.w * 2):
-                optimal_font_size += 1 
+            height = font_dim_text[1] - font_dim_text[3]
+
+            # Optimize width
+            while True:
+                err = bb_best.w*round(bb_best.h / line_height_px) - width
+                if err > pixel_margin: 
+                    optimal_font_size += 1 
+                elif err < -pixel_margin:
+                    optimal_font_size -= 1 
+                else: 
+                    break
+                
                 font = ImageFont.truetype(fontpath, optimal_font_size)
-
-                font_dim_text = font.getbbox(entire_text)
-                height = font_dim_text[1] - font_dim_text[3]
+                font_dim_text = font.getlength(entire_text)
                 width = font_dim_text[2] - font_dim_text[0]
+                height = font_dim_text[1] - font_dim_text[3]
 
-            while (height > bb_best.h): 
-                optimal_font_size -= 1 
+            # Optimize height
+            while True: 
+                err = bb_best.h*round(bb_best.h / line_height_px) - height
+                if err < -pixel_margin:
+                    optimal_font_size -= 1 
+                else: 
+                    break
+                
                 font = ImageFont.truetype(fontpath, optimal_font_size)
-
-                font_dim_text = font.getbbox(entire_text)
-                height = font_dim_text[1] - font_dim_text[3]
+                font_dim_text = font.getlength(entire_text)
                 width = font_dim_text[2] - font_dim_text[0]
+                height = font_dim_text[1] - font_dim_text[3]
 
             # Fill in background color
             img[bb_best.y : bb_best.y + bb_best.h, bb_best.x : bb_best.x + bb_best.w, 0] = best_para.dominant_color[0]
