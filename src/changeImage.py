@@ -1,3 +1,4 @@
+from importlib.metadata import entry_points
 from re import I
 import cv2                # Image processing and countour detection
 import os                 # Path
@@ -79,29 +80,39 @@ def changeImage (processTextResult:list[Page]):
             bb_best = best_para.paragraphBox
             
             #============== Add Translated Text to Bounding Box ==============#
-            # get best font size 
+            # Initialize font and text 
             fontpath = os.path.join(os.getcwd(), "src", "Fonts", "ArialUnicodeMs.ttf")
-            line_height_px = 80 # Average line height pixel
-
-            # Get translated text            
+            font_size = 50
+            font = ImageFont.truetype(fontpath, font_size)
             entire_text = best_para.translated
             
-            # Split text according to the number of lines
-            split = entire_text.split(" ") 
-            text_temp = []
-            for chunk in chunks(split, math.ceil(len(split) / round(bb_best.h / line_height_px))):
-                text_temp.append(" ".join(chunk)) 
-            entire_text = "\n".join(text_temp)
+            # Split text if they overflow
+            num_lines = 0 
+            punctuation = " !?.,<>(){}"
+            start = 0
+            i_break = -1
+            for i in range(len(entire_text)):
+                if i == len(entire_text) - 1: 
+                    break
 
-            # Adjust font according to height and width
-            img = bb_best.drawBoundingBox(img)
-            optimal_font_size = 1
-            img_fraction = 0.95 * round(bb_best.h / line_height_px)# portion of image width you want text width to be
-            font = ImageFont.truetype(fontpath, optimal_font_size)
-            while font.getsize(entire_text)[0] < img_fraction*bb_best.w:
-                optimal_font_size += 1 # iterate until the text size is just larger than the criteria
-                font = ImageFont.truetype(fontpath, optimal_font_size)
-            
+                if entire_text[i] in punctuation: 
+                    i_break = i+1
+
+                font_bb = font.getsize(entire_text[start:i])
+                if font_bb[0] > bb_best.w - 100:
+                    start = i
+                    entire_text = entire_text[:i_break].rstrip() + "\n" + entire_text[i_break:].lstrip()
+                    num_lines += 1 
+
+                i+=1
+
+            # If the height of the text is too much, then decrease font
+            font_bb = font.getsize(entire_text)
+            while font_bb[1] * num_lines > bb_best.h - 50: 
+                font_size -= 1
+                font = ImageFont.truetype(fontpath, font_size)
+                font_bb = font.getsize(entire_text)
+
             # Fill in background color
             img[bb_best.y : bb_best.y + bb_best.h, bb_best.x : bb_best.x + bb_best.w, 0] = best_para.dominant_color[0]
             img[bb_best.y : bb_best.y + bb_best.h, bb_best.x : bb_best.x + bb_best.w, 1] = best_para.dominant_color[1]
