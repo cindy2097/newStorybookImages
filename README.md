@@ -8,6 +8,8 @@ This project will attempt extract text from a pdf and then try to output a new v
 * However, you do have to install the backend of pytesseract using `sudo apt install tesseract-ocr`. Then, you add the file into line `66` of the file `Paragraph.py` (alternatively, you could add the file to your path).
 * If you are on a mac, do  `brew list tesseract` and use the first result to add to your path.
 * You also need to install requirements, it's just a simple `pip install -r requirements.txt`.
+* Please create a file, SensitiveInfo.py, containing a single line, "auth_token=[neuralspace auth token]". Please ask Subha for the auth token
+* Please create two folders in the src foler, "PNGImgs" and "PNGImgsOutput"
 
 ## Usage: 
 
