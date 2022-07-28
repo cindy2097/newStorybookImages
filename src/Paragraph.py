@@ -7,6 +7,7 @@ import json              # For extraction of translation from server
 import SensitiveInfo     # Sensitive Info (ex: auth token) regarding connection to the server
 from copy import deepcopy# For deep copying images
 from time import sleep   # For creating downtime between each API request
+from PIL import ImageEnhance
 
 class BoundingBox: 
     x = -1
@@ -106,7 +107,9 @@ class Paragraph:
             }}
             """
             sleep(delay) # If we send too much requests at once, then the server won't respond to the overflow of requests
+            print("sent request", data)
             resp = requests.post(url, headers=headers, data=data)
+            print("request done")
             response_dict = json.loads(resp.text)
             return response_dict["data"]["translatedText"]
         else: 
@@ -119,25 +122,39 @@ class Paragraph:
         def order_by_y (elem):
             return elem.y
 
-        for index, bb in enumerate(sorted(self.lines, key=order_by_y)):
-            # Crop the image
-            cropped = original_img[bb.y:bb.y + bb.h, bb.x:bb.x + bb.w]
+        print("cropped")
+        cropped = Image.fromarray(self.paragraphBox.crop_img(original_img))
+
+        enhancer1 = ImageEnhance.Sharpness(cropped)
+        enhancer2 = ImageEnhance.Contrast(cropped)
+        img_edit = enhancer1.enhance(20.0)
+        img_edit = enhancer2.enhance(1.5)
+        print("enhanced done")
+
+        result = pytesseract.image_to_string(img_edit)
+        print("text recognition done", result)
+
+        # for index, bb in enumerate(sorted(self.lines, key=order_by_y)):
+        #     # Crop the image
+        #     cropped = original_img[bb.y:bb.y + bb.h, bb.x:bb.x + bb.w]
         
-            # Apply OCR on the cropped image
-            text = re.sub(r'[\x00-\x1f]+', '',  pytesseract.image_to_string(cropped))
-            if text.strip() == "": 
-                index_delete.append(index)
-                continue
+        #     # Apply OCR on the cropped image
+        #     text = re.sub(r'[\x00-\x1f]+', '',  pytesseract.image_to_string(cropped))
+        #     if text.strip() == "": 
+        #         index_delete.append(index)
+        #         continue
 
-            # add total text
-            self.texts[index] = text
+        #     # add total text
+        #     self.texts[index] = text
 
-            # Check if we should delete index
-            if len(text) <= 3: 
-                index_delete.append(index)
+        #     # Check if we should delete index
+        #     if len(text) <= 3: 
+        #         index_delete.append(index)
 
         # get translated text
-        self.translated = self.translateText(" ".join(self.texts), self.target_lang, delay=0.2)
+        # self.translated = self.translateText(" ".join(self.texts), self.target_lang, delay=0.2)
+        self.translated = self.translateText(result, self.target_lang, delay=0.2)
+        print("translation done")
 
         # delete everything from index array
         for num, index in enumerate(index_delete):
