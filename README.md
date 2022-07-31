@@ -18,6 +18,38 @@ Then, you could use the program in this format: <br>
 Example (Linux): <br>
 `python3 StoryboardTranslate.py ./input/GreenEggsHam.pdf ./output/TranslatedGreenEggsHam.pdf`
 
+### Run on Ubuntu Linux 
+#### Install the tesseract
+If you run on the Ubuntu Linux, please follow the instructions: 
+```
+sudo apt update
+sudo add-apt-repository ppa:alex-p/tesseract-ocr-devel
+sudo apt install -y tesseract-ocr
+```
+
+If you can type in ```tesseract --version```, and get the reponse info about your version, then the installation should be finished.
+
+#### Launch Project Environment
+After we finished all the environment installations there, just do:
+```
+git clone https://github.com/linguisticsjusticeleague/newStorybookImages.git
+pip -r requirements.txt
+cd newStorybookImages/src
+vim Paragraph.py
+```
+Please change the ```$PATH``` to your local address, in case that your machine will not find your tesseract. You can find your tesseract local path by: ```which tesseract```
+```
+# ---------------- CHANGE THIS TO YOUR TESSERACT OCR FILE ------------------------------------------ #
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract(please change your $path if necessary)"
+# -------------------------------------------------------------------------------------------------- #
+```
+We can install the language OCR packages by simply run:
+```
+sudo apt-get install tesseract-ocr-eng  #for english
+sudo apt-get install tesseract-ocr-tam  #for tamil
+sudo apt-get install tesseract-ocr-deu  #for deutsch (German)
+```
+After you finished all of these settings, then you may enjoy your EduLang Journey on Ubuntu Linux!
 ## Pipeline: 
 
 1. First converts the PDF into a PNG image (no image extraction occurs, just simple conversion between PDF to multiple PNG images), Then stores the PNG images in a seperate, private folder
@@ -29,6 +61,8 @@ Example (Linux): <br>
 4. Link the new PNG images bimageack into a PDF format, and ten save the PDF into the output folder.
 
 5. Delete the PNG images
+
+
 
 ## TODO: 
 * Add the text in a seperate area instead of a whole seperate image
