@@ -34,7 +34,12 @@ Please change the ```$PATH``` to your local address, in case that your machine w
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract(please change your $path if necessary)"
       # -------------------------------------------------------------------- #
 ```
-
+We can install the language OCR packages by simply run:
+```
+sudo apt-get install tesseract-ocr-eng  #for english
+sudo apt-get install tesseract-ocr-tam  #for tamil
+sudo apt-get install tesseract-ocr-deu  #for deutsch (German)
+```
 ## Pipeline: 
 
 1. First converts the PDF into a PNG image (no image extraction occurs, just simple conversion between PDF to multiple PNG images), Then stores the PNG images in a seperate, private folder
