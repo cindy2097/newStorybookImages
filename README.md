@@ -19,8 +19,17 @@ Example (Linux): <br>
 `python3 StoryboardTranslate.py ./input/GreenEggsHam.pdf ./output/TranslatedGreenEggsHam.pdf`
 
 ### Run on Ubuntu Linux 
-If you run on the Ubuntu Linux, please follow the instructions here: https://techviewleo.com/how-to-install-tesseract-ocr-on-ubuntu/
+#### Install the tesseract
+If you run on the Ubuntu Linux, please follow the instructions: 
+```
+sudo apt update
+sudo add-apt-repository ppa:alex-p/tesseract-ocr-devel
+sudo apt install -y tesseract-ocr
+```
 
+If you can type in ```tesseract --version```, and get the reponse info about your version, then the installation should be finished.
+
+#### Launch Project Environment
 After we finished all the environment installations there, just do:
 ```
 git clone https://github.com/linguisticsjusticeleague/newStorybookImages.git
@@ -30,9 +39,9 @@ vim Paragraph.py
 ```
 Please change the ```$PATH``` to your local address, in case that your machine will not find your tesseract. You can find your tesseract local path by: ```which tesseract```
 ```
-      # -------------- CHANGE THIS TO YOUR TESSERACT OCR FILE -------------- #
+# ---------------- CHANGE THIS TO YOUR TESSERACT OCR FILE ------------------------------------------ #
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract(please change your $path if necessary)"
-      # -------------------------------------------------------------------- #
+# -------------------------------------------------------------------------------------------------- #
 ```
 We can install the language OCR packages by simply run:
 ```
@@ -40,6 +49,7 @@ sudo apt-get install tesseract-ocr-eng  #for english
 sudo apt-get install tesseract-ocr-tam  #for tamil
 sudo apt-get install tesseract-ocr-deu  #for deutsch (German)
 ```
+After you finished all of these settings, then you may enjoy your EduLang Journey on Ubuntu Linux!
 ## Pipeline: 
 
 1. First converts the PDF into a PNG image (no image extraction occurs, just simple conversion between PDF to multiple PNG images), Then stores the PNG images in a seperate, private folder
