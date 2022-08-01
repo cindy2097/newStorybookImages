@@ -9,7 +9,7 @@ This project will attempt extract text from a pdf and then try to output a new v
 * If you are on a mac, do  `brew list tesseract` and use the first result to add to your path.
 * You also need to install requirements, it's just a simple `pip install -r requirements.txt`.
 * Please create a file, SensitiveInfo.py, containing a single line, "auth_token=[neuralspace auth token]". Please ask Subha for the auth token
-* Please create two folders in the src foler, "PNGImgs" and "PNGImgsOutput"
+* Please create two folders in the src foler, "PNGImgs" and "PNGImgsOutput" and "PagesCache", also create a folder in the project called "output"
 
 ## Usage: 
 
