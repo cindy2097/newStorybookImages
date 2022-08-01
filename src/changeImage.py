@@ -1,5 +1,3 @@
-from importlib.metadata import entry_points
-from re import I
 import cv2                # Image processing and countour detection
 import os                 # Path
 from tqdm import tqdm     # Progress Bar
@@ -7,8 +5,7 @@ import math               # Math operations for calculating contrast and floor f
 from PIL import ImageDraw # Library for drawing
 from PIL import ImageFont # Library for drawing 
 from PIL import Image     # Library for drawing
-import numpy as np
-from zmq import EVENT_MONITOR_STOPPED        # For image conversion 
+import numpy as np        # For image conversion
 from Paragraph import *   # Import Paragraph, BoundingBox, and Page classes
 from typing import cast   # To enable accurate and helpful autocomplete during developing :) 
 from copy import deepcopy # For deepcopying the bounding boxes for comparison
@@ -37,7 +34,7 @@ def chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
-def changeImage (processTextResult:list[Page]): 
+def changeImage (processTextResult): 
     for page in tqdm(processTextResult, desc="Changing image: "): 
         pageNum = 0
         page = cast(Page, page) 
@@ -53,10 +50,10 @@ def changeImage (processTextResult:list[Page]):
             right_para = deepcopy(orig_paragraph).apply_offset(offset_x=orig_paragraph.paragraphBox.w)
             top_para = deepcopy(orig_paragraph).apply_offset(offset_y=-orig_paragraph.paragraphBox.h)
             bottom_para = deepcopy(orig_paragraph).apply_offset(offset_y=orig_paragraph.paragraphBox.h)
-            options:list[Paragraph] = [left_para, right_para, top_para, bottom_para]
+            options = [left_para, right_para, top_para, bottom_para]
 
             # Elimate all boxes that are out of bounds from image
-            elim:list[Paragraph] = [] 
+            elim = [] 
             for option in options: 
                 if option.out_of_bounds(img_w, img_h):
                     elim.append(option)
@@ -69,7 +66,7 @@ def changeImage (processTextResult:list[Page]):
 
             # For the rest of the boxes, assign a score to them that has the most average color closer to paragraph dominant color
             lowest_score = -1 
-            best_para:Paragraph = None
+            best_para = None
             for option in options: 
                 cropped_img = option.paragraphBox.crop_img(img)
                 avg_color = np.average(cropped_img, axis=(0,1)).tolist()

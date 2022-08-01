@@ -41,8 +41,8 @@ class BoundingBox:
         return False
     
 class Paragraph: 
-    lines : list[BoundingBox] = [] # Array of BoundingBox
-    texts : list[str] = [] # Array of strings that correspond with each line
+    lines = [] # Array of BoundingBox
+    texts = [] # Array of strings that correspond with each line
     paragraphBox : BoundingBox = None # BoundingBox of general Paragraph
     pageNum = -1           # The page number the paragraph is in
     paragraphId = -1    # The paragraph unique id in the page
@@ -191,7 +191,7 @@ class Paragraph:
         return img
 
 class Page: 
-    paragraphs: list[Paragraph] = []
+    paragraphs = []
     original_image = None
 
     def __init__(self, paragraphs, original_image) -> None:
