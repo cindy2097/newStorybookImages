@@ -1,72 +1,156 @@
+from distutils.command.clean import clean
 import cv2                      # Image processing and countour detection
 import os                       # Path
 from tqdm import tqdm           # Progress Bar
 import numpy as np              # average color calculations
 import pickle                   # For caching detection (brings it MUCH easier to changeImage.py)
 from termcolor import colored   # For color on terminal (used to send out warnings)
+import easyocr                  # Easy OCR for text detection and extraction
 
 import re                # For some reason pytesseract adds in \n and \x0c. This will remove it
 from Paragraph import *  # Paragraph class and Bounding Box class
 
-# most of the code is from https://www.geeksforgeeks.org/text-detection-and-extraction-using-opencv-and-ocr/
-def getCountours (path): 
-    img = cv2.imread(path)
-    
-    # Convert the image to gray scale
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    
-    # Performing OTSU threshold (highlights edges)
-    _, thresh1 = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU | cv2.THRESH_BINARY_INV)
-    
-    # Specify structure shape and kernel size.
-    # Kernel size increases or decreases the area
-    # of the rectangle to be detected.
-    # A smaller value like (10, 10) will detect
-    # each word instead of a sentence.
-    rect_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25))
-    
-    # Applying dilation on the threshold image (somewhat blurs the image so that the bounding box can generalize)
-    dilation = cv2.dilate(thresh1, rect_kernel, iterations = 1)
 
-    # Finding contours
-    contours, _ = cv2.findContours(dilation, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    return contours, img.copy()
-
-def detectParagraphs (lines, page, target_lang, image, x_threshold=50): 
-    # Given a set of points, give a bounding box of each point
-    arr = [] 
-    for line in lines:
-        if len(arr) == 0:
-            arr.append([line])
-            continue
-        for index, value in enumerate(arr): 
-            # If bounding boxes are TOO similar
-            if abs(value[0].x - line.x) + abs(value[0].y - line.y) + abs(value[0].w - line.w) + abs(value[0].h - line.h) < 20:
-                continue 
-            if abs(value[0].x - line.x) <= x_threshold:
-                arr[index].append(line)
-                break
-            if index == len(arr) - 1: arr.append([line])
-
-    # Replace each array of points with Paragraph class 
-    output = []
-    for index, value in enumerate(arr): 
-        # value is a bunch of bounding boxes that correspond to each line in the paragraph
-        para = Paragraph(value, page, index, target_lang)
-
-        # check if paragraph is too big or too small. If it is, discard paragraph
-        if (para.paragraphBox.w > image.shape[0] * 0.5) or (para.paragraphBox.h > image.shape[1] * 0.5): 
-            continue
+def get_overall_box (boxs): 
+    TLminX = -1
+    TLminY = -1
+    BRmaxX = -1 
+    BRmaxY = -1
+    for box in boxs: 
+        if TLminX == -1: TLminX = box[0]
+        if TLminY == -1: TLminY = box[1]
+        if BRmaxX == -1: BRmaxX = box[0] + box[2]
+        if BRmaxY == -1: BRmaxY = box[1] + box[3]
         
-        if (para.paragraphBox.w < image.shape[0] * 0.05) or (para.paragraphBox.h < image.shape[1] * 0.05):
-            continue
-            
-        # Append output
-        output.append(para)
+        if box[0] < TLminX: TLminX = box[0]
+        if box[1] < TLminY: TLminY = box[1]
+        if box[0] + box[2] > BRmaxX: BRmaxX = box[0] + box[2]
+        if box[1] + box[3] > BRmaxY: BRmaxY = box[1] + box[3]
+    return TLminX, TLminY, BRmaxX - TLminX, BRmaxY - TLminY
 
-    return output 
+def is_surrounded (boxOne, boxTwo):
+    x_val = boxTwo[0]
+    y_val = boxTwo[1]
+    if  x_val >= boxOne[0] and x_val <= boxOne[0] + boxOne[2] and \
+        y_val >= boxOne[1] and y_val <= boxOne[1] + boxOne[3]:
+        return True
+    
+    x_val = boxTwo[0] + boxTwo[2]
+    y_val = boxTwo[1]
+    if  x_val >= boxOne[0] and x_val <= boxOne[0] + boxOne[2] and \
+        y_val >= boxOne[1] and y_val <= boxOne[1] + boxOne[3]:
+        return True
+
+    x_val = boxTwo[0] 
+    y_val = boxTwo[1] + boxTwo[3]
+    if  x_val >= boxOne[0] and x_val <= boxOne[0] + boxOne[2] and \
+        y_val >= boxOne[1] and y_val <= boxOne[1] + boxOne[3]:
+        return True
+
+    x_val = boxTwo[0] + boxTwo[2]
+    y_val = boxTwo[1] + boxTwo[3]
+    if  x_val >= boxOne[0] and x_val <= boxOne[0] + boxOne[2] and \
+        y_val >= boxOne[1] and y_val <= boxOne[1] + boxOne[3]:
+        return True
+
+    return False
+
+def constructPage (result, page_num, target_lang, image, threshold_similarity=100):
+    # Construct the page class based on the EasyOCR result
+
+    # First, clean the result
+    cleaned_result = []
+    for res in result: 
+        bbox = res[0]
+        text = res[1] 
+        confidenceStore = res[2]
+        if confidenceStore < 0.2: 
+            continue
+    
+        # else get x, y, w, h from bounding box
+        x = bbox[0][0]
+        y = bbox[0][1]
+        w = bbox[1][0] - bbox[0][0]
+        h = bbox[2][1] - bbox[1][1]
+        
+        cleaned_result.append( (x, y, w, h, text, confidenceStore) )
+         
+    # Then, group bounding boxes according to proximitity
+    arr = {}
+
+    for line in cleaned_result:
+        if len(arr) == 0:
+            arr[(line[0], line[1], line[2], line[3])] = [line]
+            continue
+        index = 0 
+        while True: 
+            bbox = list(arr.keys())[index]
+            
+            # If it is next the left
+            if bbox[0] - line[0] + line[2]  > 0 and bbox[0] - line[0] + line[2] < threshold_similarity and abs(line[1] - bbox[1]) < line[3]:
+                other_bbox = arr[bbox]
+                other_bbox.append(line)
+                arr.pop(bbox, None)
+                arr[get_overall_box(other_bbox)] = other_bbox
+                break
+
+            # If it is next to the right
+            if line[0] - bbox[0] + bbox[2] > 0 and line[0] - bbox[0] + bbox[2] < threshold_similarity and abs(line[1] - bbox[1]) < line[3]: 
+                other_bbox = arr[bbox]
+                other_bbox.append(line)
+                arr.pop(bbox, None)
+                arr[get_overall_box(other_bbox)] = other_bbox
+                break
+            
+            # If it is to the top
+            if bbox[1] - line[1] + line[3] > 0 and bbox[1] - line[1] + line[3] < threshold_similarity and abs(line[0] - bbox[0]) < line[2]:
+                other_bbox = arr[bbox]
+                other_bbox.append(line)
+                arr.pop(bbox, None)
+                arr[get_overall_box(other_bbox)] = other_bbox
+                break
+
+            # If it is to the bottom
+            if line[1] - bbox[1] + bbox[3] > 0 and line[1] - bbox[1] + bbox[3] < threshold_similarity and abs(line[0] - bbox[0]) < line[2]:
+                other_bbox = arr[bbox]
+                other_bbox.append(line)
+                arr.pop(bbox, None)
+                arr[get_overall_box(other_bbox)] = other_bbox
+                break
+
+            # If box is circumstanced
+            if is_surrounded(bbox, line): 
+                other_bbox = arr[bbox]
+                other_bbox.append(line)
+                arr.pop(bbox, None)
+                arr[get_overall_box(other_bbox)] = other_bbox
+                break
+        
+            # Else append to new section
+            if index == len(arr) - 1:
+                arr[(line[0], line[1], line[2], line[3])] = [line]
+                break
+
+            # Increment index
+            index += 1
+
+    # for each group, construct paragraph
+    paragraphs = []
+    paragraph_id = 0
+    for overallBox in arr.keys(): 
+        lines = [] 
+        texts = []
+        group = arr[overallBox]
+        for line in group: 
+            lines.append(BoundingBox(line[0], line[1], line[2], line[3]))
+            texts.append(line[4])
+        paragraphs.append(Paragraph(lines, overallBox, texts, page_num, paragraph_id, target_lang))
+        paragraph_id += 1
+
+    return Page(paragraphs, image)
 
 def processText (path, target_language): 
+    reader = easyocr.Reader(['en'])
     # This is the actual processtext array that stores an array of paragraphs 
     pages = []
 
@@ -75,25 +159,14 @@ def processText (path, target_language):
             continue
         index = int(re.findall(r'\d+', filename.split(".")[0])[0])
         full_path = os.path.join(path, filename)
+        image = cv2.imread(full_path)
+    
+        # Put image into EasyOCR
+        result = reader.readtext(full_path)  
 
-        # get countours 
-        contours, im2 = getCountours(full_path)
-
-        # Array that stores x, y, w, and h of the line
-        lines = []
-
-        for cnt in contours:
-            x, y, w, h = cv2.boundingRect(cnt)
-
-            # Append points
-            lines.append(BoundingBox(x, y, w, h))
-
-        # Get paragraph and page
-        paragraphs = detectParagraphs(lines, index, target_language, im2) 
-        page = Page(paragraphs, im2)
-        page.apply_ocr()
-
-        # Append to pages 
+        # Construct page and append
+        page = constructPage(result, index, target_language, image)
+        page.display_page()
         pages.append(page)
     
     # cache pages
