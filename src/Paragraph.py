@@ -8,6 +8,7 @@ import json              # For extraction of translation from server
 import SensitiveInfo     # Sensitive Info (ex: auth token) regarding connection to the server
 from copy import deepcopy# For deep copying images
 from time import sleep   # For creating downtime between each API request
+from termcolor import colored
 
 class BoundingBox: 
     x = -1
@@ -69,39 +70,60 @@ class Paragraph:
             "’": "'",
             "”": "'",
             "“": "'",
-            "—": "-"
+            "—": "-",
+            "\"": ""
         }
         for key in special_char_dict:
             text = text.replace(key, special_char_dict[key])
 
         return text 
 
-    def translateText (self, delay=0.5): 
+    def get_dominant_color (self, image):
+        # Get dominant color
+        cropped = Image.fromarray(self.paragraphBox.crop_img(image))
+        cropped.thumbnail((100, 100))
+        paletted = cropped.convert('P', palette=Image.ADAPTIVE, colors=16)
+        palette = paletted.getpalette()
+        color_counts = sorted(paletted.getcolors(), reverse=True)
+        palette_index = color_counts[0][1]
+        self.dominant_color = palette[palette_index*3:palette_index*3+3]
+
+    def translateText (self, delay=1): 
         overall_text = " ".join(self.texts)
-        print(f"\nOverall Text: {overall_text}")
-        if overall_text.strip() != "":
-            # How to convert target_language (ex: turkish) to language token?
-            # What is the auth token?
-            auth_token = SensitiveInfo.auth_token 
+        
+        if len(overall_text.strip()) < 20: 
+            return None
 
-            url = "https://platform.neuralspace.ai/api/translation/v1/translate"
-            headers = {}
-            headers["Accept"] = "application/json, text/plain, */*"
-            headers["authorization"] = auth_token
-            headers["Content-Type"] = "application/json;charset=UTF-8"
+        # How to convert target_language (ex: turkish) to language token?
+        # What is the auth token?
+        auth_token = SensitiveInfo.auth_token 
 
-            # send request
-            data = f""" 
-            {{
-                "text": "{self.removeChar(overall_text)}",
-                "sourceLanguage": "en",
-                "targetLanguage": "{self.target_lang}"
-            }}
-            """
-            sleep(delay) # If we send too much requests at once, then the server won't respond to the overflow of requests
-            resp = requests.post(url, headers=headers, data=data)
+        url = "https://platform.neuralspace.ai/api/translation/v1/translate"
+        headers = {}
+        headers["Accept"] = "application/json, text/plain, */*"
+        headers["authorization"] = auth_token
+        headers["Content-Type"] = "application/json;charset=UTF-8"
+
+        # send request
+        data = f""" 
+        {{
+            "text": "{self.removeChar(overall_text)}",
+            "sourceLanguage": "en",
+            "targetLanguage": "{self.target_lang}"
+        }}
+        """
+        sleep(delay) # If we send too much requests at once, then the server won't respond to the overflow of requests
+        resp = requests.post(url, headers=headers, data=data)
+        try:
             response_dict = json.loads(resp.text)
             self.translated = response_dict["data"]["translatedText"]
+            return True
+        except Exception:
+            print(colored("\nError sending response to NeuralSpace API. Deleting Paragraph! \nResponse: ", "red"), end="")
+            print(resp)
+            print(colored("Text sent: ", "red"), end="")
+            print(self.removeChar(overall_text))
+            return None
     
     def apply_offset (self, offset_x=0, offset_y=0):
         for index in range(len(self.lines)):
@@ -117,7 +139,7 @@ class Paragraph:
             return elem.y
         for index, _ in enumerate(sorted(self.lines, key=order_by_y)):
             img = cv2.putText(img, self.texts[index], (self.lines[index].x, self.lines[index].y), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=2) 
-        img = cv2.rectangle(img, (self.paragraphBox.x, self.paragraphBox.y), (self.paragraphBox.x + self.paragraphBox.w, self.paragraphBox.y + self.paragraphBox.h), (0,0,255), 5)
+        img = cv2.rectangle(img, (self.paragraphBox.x, self.paragraphBox.y), (self.paragraphBox.x + self.paragraphBox.w, self.paragraphBox.y + self.paragraphBox.h), (0,0,255), 3)
         return img
 
 class Page: 
@@ -127,14 +149,23 @@ class Page:
     def __init__(self, paragraphs, original_image) -> None:
         self.paragraphs = paragraphs
         self.original_image = original_image
+        for para in self.paragraphs: 
+            para.get_dominant_color(original_image)
 
     def display_page (self, name="Display"):
         img = deepcopy(self.original_image)
         for paragraph in self.paragraphs:
             img = paragraph.draw_text_box(img)
+
+        cv2.namedWindow(name, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(name, 1000, 800)
         cv2.imshow(name, img) 
         cv2.waitKey(0)
 
     def translate (self):
+        removed = []
         for para in self.paragraphs: 
-            para.translateText()
+            result = para.translateText()
+            if result == None: removed.append(para)
+        for remove in removed:
+            self.paragraphs.remove(remove)

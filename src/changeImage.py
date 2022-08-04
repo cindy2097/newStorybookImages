@@ -1,4 +1,3 @@
-from re import I
 import cv2                # Image processing and countour detection
 import os                 # Path
 from tqdm import tqdm     # Progress Bar
@@ -6,8 +5,7 @@ import math               # Math operations for calculating contrast and floor f
 from PIL import ImageDraw # Library for drawing
 from PIL import ImageFont # Library for drawing 
 from PIL import Image     # Library for drawing
-import numpy as np
-from zmq import EVENT_MONITOR_STOPPED        # For image conversion 
+import numpy as np        # For image conversion
 from Paragraph import *   # Import Paragraph, BoundingBox, and Page classes
 from typing import cast   # To enable accurate and helpful autocomplete during developing :) 
 from copy import deepcopy # For deepcopying the bounding boxes for comparison
@@ -36,7 +34,7 @@ def chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
-def changeImage (processTextResult:list[Page]): 
+def changeImage (processTextResult): 
     for page in tqdm(processTextResult, desc="Changing image: "): 
         pageNum = 0
         page = cast(Page, page) 
@@ -52,11 +50,12 @@ def changeImage (processTextResult:list[Page]):
             right_para = deepcopy(orig_paragraph).apply_offset(offset_x=orig_paragraph.paragraphBox.w)
             top_para = deepcopy(orig_paragraph).apply_offset(offset_y=-orig_paragraph.paragraphBox.h)
             bottom_para = deepcopy(orig_paragraph).apply_offset(offset_y=orig_paragraph.paragraphBox.h)
-            options:list[Paragraph] = [left_para, right_para, top_para, bottom_para]
+            options = [left_para, right_para, top_para, bottom_para]
 
             # Elimate all boxes that are out of bounds from image
-            elim:list[Paragraph] = [] 
+            elim = [] 
             for option in options: 
+                print(img_w, img_h, option)
                 if option.out_of_bounds(img_w, img_h):
                     elim.append(option)
             for el in elim: 
@@ -68,7 +67,7 @@ def changeImage (processTextResult:list[Page]):
 
             # For the rest of the boxes, assign a score to them that has the most average color closer to paragraph dominant color
             lowest_score = -1 
-            best_para:Paragraph = None
+            best_para = None
             for option in options: 
                 cropped_img = option.paragraphBox.crop_img(img)
                 avg_color = np.average(cropped_img, axis=(0,1)).tolist()
@@ -79,29 +78,39 @@ def changeImage (processTextResult:list[Page]):
             bb_best = best_para.paragraphBox
             
             #============== Add Translated Text to Bounding Box ==============#
-            # get best font size 
+            # Initialize font and text 
             fontpath = os.path.join(os.getcwd(), "src", "Fonts", "ArialUnicodeMs.ttf")
-            line_height_px = 80 # Average line height pixel
-
-            # Get translated text            
+            font_size = 50
+            font = ImageFont.truetype(fontpath, font_size)
             entire_text = best_para.translated
             
-            # Split text according to the number of lines
-            split = entire_text.split(" ") 
-            text_temp = []
-            for chunk in chunks(split, math.ceil(len(split) / round(bb_best.h / line_height_px))):
-                text_temp.append(" ".join(chunk)) 
-            entire_text = "\n".join(text_temp)
+            # Split text if they overflow
+            num_lines = 0 
+            punctuation = " !?.,<>(){}"
+            start = 0
+            i_break = -1
+            for i in range(len(entire_text)):
+                if i == len(entire_text) - 1: 
+                    break
 
-            # Adjust font according to height and width
-            img = bb_best.drawBoundingBox(img)
-            optimal_font_size = 1
-            img_fraction = 0.95 * round(bb_best.h / line_height_px)# portion of image width you want text width to be
-            font = ImageFont.truetype(fontpath, optimal_font_size)
-            while font.getsize(entire_text)[0] < img_fraction*bb_best.w:
-                optimal_font_size += 1 # iterate until the text size is just larger than the criteria
-                font = ImageFont.truetype(fontpath, optimal_font_size)
-            
+                if entire_text[i] in punctuation: 
+                    i_break = i+1
+
+                font_bb = font.getsize(entire_text[start:i])
+                if font_bb[0] > bb_best.w - 100:
+                    start = i
+                    entire_text = entire_text[:i_break].rstrip() + "\n" + entire_text[i_break:].lstrip()
+                    num_lines += 1 
+
+                i+=1
+
+            # If the height of the text is too much, then decrease font
+            font_bb = font.getsize(entire_text)
+            while font_bb[1] * num_lines > bb_best.h - 50: 
+                font_size -= 1
+                font = ImageFont.truetype(fontpath, font_size)
+                font_bb = font.getsize(entire_text)
+
             # Fill in background color
             img[bb_best.y : bb_best.y + bb_best.h, bb_best.x : bb_best.x + bb_best.w, 0] = best_para.dominant_color[0]
             img[bb_best.y : bb_best.y + bb_best.h, bb_best.x : bb_best.x + bb_best.w, 1] = best_para.dominant_color[1]

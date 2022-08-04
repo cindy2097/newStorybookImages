@@ -55,6 +55,35 @@ def is_surrounded (boxOne, boxTwo):
 
     return False
 
+def orderResult (result):
+    arr = []
+    result = sorted(result , key=lambda k: k[1])
+    for obj in result:
+        if len(arr) == 0: 
+            arr = [[obj]]
+            continue
+        
+        for index, out in enumerate(arr): 
+            lead_box = out[-1]
+
+            if len(obj[4]) < 20: break
+
+            if abs(obj[1] - lead_box[1]) == 0 and abs(obj[0] - lead_box[0]) == 0:
+                break
+
+            if abs(obj[1] - lead_box[1]) < obj[3]:
+                arr[index].append(obj)
+                break
+
+            if index == len(arr) - 1: 
+                arr.append([obj])
+
+    output = []
+    for i in arr: 
+        output.extend(sorted(i, key=lambda k: k[0]))
+
+    return output
+
 def constructPage (result, page_num, target_lang, image, threshold_similarity=100):
     # Construct the page class based on the EasyOCR result
 
@@ -64,8 +93,6 @@ def constructPage (result, page_num, target_lang, image, threshold_similarity=10
         bbox = res[0]
         text = res[1] 
         confidenceStore = res[2]
-        if confidenceStore < 0.2: 
-            continue
     
         # else get x, y, w, h from bounding box
         x = bbox[0][0]
@@ -74,8 +101,12 @@ def constructPage (result, page_num, target_lang, image, threshold_similarity=10
         h = bbox[2][1] - bbox[1][1]
         
         cleaned_result.append( (x, y, w, h, text, confidenceStore) )
-         
+
+    cleaned_result = orderResult(cleaned_result)
+    print(cleaned_result)
+
     # Then, group bounding boxes according to proximitity
+    threshold_similarity = 150
     arr = {}
 
     for line in cleaned_result:
@@ -87,7 +118,7 @@ def constructPage (result, page_num, target_lang, image, threshold_similarity=10
             bbox = list(arr.keys())[index]
             
             # If it is next the left
-            if bbox[0] - line[0] + line[2]  > 0 and bbox[0] - line[0] + line[2] < threshold_similarity and abs(line[1] - bbox[1]) < line[3]:
+            if abs(bbox[0] - (line[0] + line[2])) < threshold_similarity and abs(line[1] - bbox[1]) < line[3]:
                 other_bbox = arr[bbox]
                 other_bbox.append(line)
                 arr.pop(bbox, None)
@@ -95,7 +126,7 @@ def constructPage (result, page_num, target_lang, image, threshold_similarity=10
                 break
 
             # If it is next to the right
-            if line[0] - bbox[0] + bbox[2] > 0 and line[0] - bbox[0] + bbox[2] < threshold_similarity and abs(line[1] - bbox[1]) < line[3]: 
+            if abs(line[0] - (bbox[0] + bbox[2])) < threshold_similarity and abs(line[1] - bbox[1]) < line[3]: 
                 other_bbox = arr[bbox]
                 other_bbox.append(line)
                 arr.pop(bbox, None)
@@ -103,7 +134,7 @@ def constructPage (result, page_num, target_lang, image, threshold_similarity=10
                 break
             
             # If it is to the top
-            if bbox[1] - line[1] + line[3] > 0 and bbox[1] - line[1] + line[3] < threshold_similarity and abs(line[0] - bbox[0]) < line[2]:
+            if abs(bbox[1] - (line[1] + line[3])) < threshold_similarity and abs(line[0] - bbox[0]) < line[2]:
                 other_bbox = arr[bbox]
                 other_bbox.append(line)
                 arr.pop(bbox, None)
@@ -111,14 +142,13 @@ def constructPage (result, page_num, target_lang, image, threshold_similarity=10
                 break
 
             # If it is to the bottom
-            if line[1] - bbox[1] + bbox[3] > 0 and line[1] - bbox[1] + bbox[3] < threshold_similarity and abs(line[0] - bbox[0]) < line[2]:
+            if abs(line[1] - (bbox[1] + bbox[3])) < threshold_similarity and abs(line[0] - bbox[0]) < line[2]:
                 other_bbox = arr[bbox]
                 other_bbox.append(line)
                 arr.pop(bbox, None)
                 arr[get_overall_box(other_bbox)] = other_bbox
                 break
 
-            # If box is circumstanced
             if is_surrounded(bbox, line): 
                 other_bbox = arr[bbox]
                 other_bbox.append(line)
@@ -167,6 +197,7 @@ def processText (path, target_language):
         # Construct page and append
         page = constructPage(result, index, target_language, image)
         page.display_page()
+        page.translate()
         pages.append(page)
     
     # cache pages
