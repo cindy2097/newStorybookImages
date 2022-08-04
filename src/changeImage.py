@@ -55,7 +55,6 @@ def changeImage (processTextResult):
             # Elimate all boxes that are out of bounds from image
             elim = [] 
             for option in options: 
-                print(img_w, img_h, option)
                 if option.out_of_bounds(img_w, img_h):
                     elim.append(option)
             for el in elim: 

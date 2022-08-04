@@ -103,7 +103,6 @@ def constructPage (result, page_num, target_lang, image, threshold_similarity=10
         cleaned_result.append( (x, y, w, h, text, confidenceStore) )
 
     cleaned_result = orderResult(cleaned_result)
-    print(cleaned_result)
 
     # Then, group bounding boxes according to proximitity
     threshold_similarity = 150

@@ -1,4 +1,3 @@
-from socket import BTPROTO_RFCOMM
 from PIL import Image    # Image class for getting dominant color
 import re                # For some reason pytesseract adds in \n and \x0c. This will remove it
 import pytesseract       # OCR 
