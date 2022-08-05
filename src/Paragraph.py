@@ -7,7 +7,6 @@ import json              # For extraction of translation from server
 import SensitiveInfo     # Sensitive Info (ex: auth token) regarding connection to the server
 from copy import deepcopy# For deep copying images
 from time import sleep   # For creating downtime between each API request
-from termcolor import colored
 
 class BoundingBox: 
     x = -1
@@ -34,30 +33,54 @@ class BoundingBox:
     def drawBoundingBox (self, img): 
         return cv2.rectangle(img, (self.x, self.y), (self.x + self.w, self.y + self.h), (0,0,0), 5)
 
-    def out_of_bounds (self, img_w, img_h, margin=100):
+    def out_of_bounds (self, img_w, img_h, margin=0):
         if (self.x + self.w > img_w + margin) or (self.y + self.h > img_h + margin) or self.x < 0 or self.y < 0: 
             return True
         return False
     
 class Paragraph: 
+    lines : list[BoundingBox] = [] # Array of BoundingBox
+    texts : list[str] = [] # Array of strings that correspond with each line
     paragraphBox : BoundingBox = None # BoundingBox of general Paragraph
     pageNum = -1           # The page number the paragraph is in
     paragraphId = -1    # The paragraph unique id in the page
     dominant_color = [] # The rgb values of the dominant color
     translated = "" # The translated text of the paragraph  
 
-    def __init__ (self, translatedText, originalText, overallBox, pageNum):
-        self.translatedText = translatedText
-        self.originalText = originalText
-        self.pageNum = pageNum
-        self.paragraphBox = overallBox
+    def __init__ (self, lines, page, paragraphId, target_lang): 
+        self.lines = lines
+        self.texts = ["" for _ in self.lines]
+        self.pageNum = page
+        self.paragraphId = paragraphId
+        self.target_lang = target_lang
+        
+        # Get paragraph box of the general paragraph using self.lines
+        self.paragraphBox = BoundingBox()
+        max_y = 0 
+        for line_bounding_box in self.lines: 
+            if line_bounding_box.x < self.paragraphBox.x or self.paragraphBox.x == -1: 
+                self.paragraphBox.x = line_bounding_box.x 
+            if line_bounding_box.y < self.paragraphBox.y or self.paragraphBox.y == -1:
+                self.paragraphBox.y = line_bounding_box.y
+            if line_bounding_box.w > self.paragraphBox.w: 
+                self.paragraphBox.w = line_bounding_box.w
+            if line_bounding_box.y + line_bounding_box.h > max_y: 
+                max_y = line_bounding_box.y + line_bounding_box.h
+        self.paragraphBox.h = max_y - self.paragraphBox.y
 
         # -------------- CHANGE THIS TO YOUR TESSERACT OCR FILE -------------- #
         pytesseract.pytesseract.tesseract_cmd = "C:\\msys64\\mingw32\\bin\\tesseract.exe" 
         # -------------------------------------------------------------------- #
 
-    def __str__(self) -> str:
-        return f"Page Number: {self.pageNum} Paragraph ID: {self.paragraphId}"
+    def removeChar(self, text): 
+        special_char_dict = {
+            "’": "'",
+            "”": "'",
+            "“": "'",
+            "—": "-"
+        }
+        for key in special_char_dict:
+            text = text.replace(key, special_char_dict[key])
 
     def get_dominant_color (self, image):
         # Get dominant color
@@ -68,10 +91,14 @@ class Paragraph:
         color_counts = sorted(paletted.getcolors(), reverse=True)
         palette_index = color_counts[0][1]
         self.dominant_color = palette[palette_index*3:palette_index*3+3]
+        
+        return self.texts, self.dominant_color     
 
     def apply_offset (self, offset_x=0, offset_y=0):
-        self.paragraphBox.apply_offset(offset_x, offset_y)
-        return self 
+        for index in range(len(self.lines)):
+            self.lines[index].apply_offset(offset_x, offset_y)
+        self.paragraphBox.apply_offset(offset_x, offset_y)        
+        return self
 
     def out_of_bounds (self, img_w, img_h):
         return self.paragraphBox.out_of_bounds(img_w, img_h)
@@ -82,7 +109,7 @@ class Paragraph:
         return img
 
 class Page: 
-    paragraphs: list[Paragraph] = []
+    paragraphs = []
     original_image = None
 
     def __init__(self, paragraphs, original_image) -> None:

@@ -110,6 +110,7 @@ def changeImage (processTextResult):
                 font = ImageFont.truetype(fontpath, font_size)
                 font_bb = font.getsize(entire_text)
 
+
             # Fill in background color
             img[bb_best.y : bb_best.y + bb_best.h, bb_best.x : bb_best.x + bb_best.w, 0] = best_para.dominant_color[0]
             img[bb_best.y : bb_best.y + bb_best.h, bb_best.x : bb_best.x + bb_best.w, 1] = best_para.dominant_color[1]
