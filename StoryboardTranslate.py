@@ -40,7 +40,7 @@ def convertPDFToImage (path, cut_begin, cut_end):
     for index, page in enumerate(pages):
         if index < cut_begin:
             continue
-        if index > len(pages) - cut_end:
+        if index >= len(pages) - cut_end:
             break 
         cwd = os.getcwd()
         path = os.path.join(cwd, "src", "PNGImgs", "page"+str(index+1)+".jpg")

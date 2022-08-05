@@ -27,7 +27,6 @@ class BoundingBox:
     def apply_offset (self, offset_x=0, offset_y=0): 
         self.x += offset_x
         self.y += offset_y
-        return self
 
     def crop_img (self, img):
         return img[self.y:self.y+self.h, self.x:self.x+self.w]
@@ -41,41 +40,24 @@ class BoundingBox:
         return False
     
 class Paragraph: 
-    lines : list[BoundingBox] = [] # Array of BoundingBox
-    texts : list[str] = [] # Array of strings that correspond with each line
     paragraphBox : BoundingBox = None # BoundingBox of general Paragraph
     pageNum = -1           # The page number the paragraph is in
     paragraphId = -1    # The paragraph unique id in the page
     dominant_color = [] # The rgb values of the dominant color
     translated = "" # The translated text of the paragraph  
 
-    def __init__ (self, lines, overallBox, texts, pageNum, paragraphId, target_lang): 
-        self.lines = lines
-        self.texts = texts
+    def __init__ (self, translatedText, originalText, overallBox, pageNum):
+        self.translatedText = translatedText
+        self.originalText = originalText
         self.pageNum = pageNum
-        self.paragraphId = paragraphId
-        self.target_lang = target_lang
-        self.paragraphBox = BoundingBox(overallBox[0], overallBox[1], overallBox[2], overallBox[3])
+        self.paragraphBox = overallBox
 
         # -------------- CHANGE THIS TO YOUR TESSERACT OCR FILE -------------- #
         pytesseract.pytesseract.tesseract_cmd = "C:\\msys64\\mingw32\\bin\\tesseract.exe" 
         # -------------------------------------------------------------------- #
 
     def __str__(self) -> str:
-        return f"Page Number: {self.pageNum} Paragraph ID: {self.paragraphId} Texts: {self.texts} Lines: {[i.__str__() for i in self.lines]}"
-
-    def removeChar(self, text): 
-        special_char_dict = {
-            "’": "'",
-            "”": "'",
-            "“": "'",
-            "—": "-",
-            "\"": ""
-        }
-        for key in special_char_dict:
-            text = text.replace(key, special_char_dict[key])
-
-        return text 
+        return f"Page Number: {self.pageNum} Paragraph ID: {self.paragraphId}"
 
     def get_dominant_color (self, image):
         # Get dominant color
@@ -87,57 +69,15 @@ class Paragraph:
         palette_index = color_counts[0][1]
         self.dominant_color = palette[palette_index*3:palette_index*3+3]
 
-    def translateText (self, delay=1): 
-        overall_text = " ".join(self.texts)
-        
-        if len(overall_text.strip()) < 20: 
-            return None
-
-        # How to convert target_language (ex: turkish) to language token?
-        # What is the auth token?
-        auth_token = SensitiveInfo.auth_token 
-
-        url = "https://platform.neuralspace.ai/api/translation/v1/translate"
-        headers = {}
-        headers["Accept"] = "application/json, text/plain, */*"
-        headers["authorization"] = auth_token
-        headers["Content-Type"] = "application/json;charset=UTF-8"
-
-        # send request
-        data = f""" 
-        {{
-            "text": "{self.removeChar(overall_text)}",
-            "sourceLanguage": "en",
-            "targetLanguage": "{self.target_lang}"
-        }}
-        """
-        sleep(delay) # If we send too much requests at once, then the server won't respond to the overflow of requests
-        resp = requests.post(url, headers=headers, data=data)
-        try:
-            response_dict = json.loads(resp.text)
-            self.translated = response_dict["data"]["translatedText"]
-            return True
-        except Exception:
-            print(colored("\nError sending response to NeuralSpace API. Deleting Paragraph! \nResponse: ", "red"), end="")
-            print(resp)
-            print(colored("Text sent: ", "red"), end="")
-            print(self.removeChar(overall_text))
-            return None
-    
     def apply_offset (self, offset_x=0, offset_y=0):
-        for index in range(len(self.lines)):
-            self.lines[index].apply_offset(offset_x, offset_y)
-        self.paragraphBox.apply_offset(offset_x, offset_y)        
-        return self
+        self.paragraphBox.apply_offset(offset_x, offset_y)
+        return self 
 
     def out_of_bounds (self, img_w, img_h):
         return self.paragraphBox.out_of_bounds(img_w, img_h)
 
     def draw_text_box (self, img):
-        def order_by_y (elem):
-            return elem.y
-        for index, _ in enumerate(sorted(self.lines, key=order_by_y)):
-            img = cv2.putText(img, self.texts[index], (self.lines[index].x, self.lines[index].y), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=2) 
+        img = cv2.putText(img, self.originalText, (self.paragraphBox.x, self.paragraphBox.y), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=2) 
         img = cv2.rectangle(img, (self.paragraphBox.x, self.paragraphBox.y), (self.paragraphBox.x + self.paragraphBox.w, self.paragraphBox.y + self.paragraphBox.h), (0,0,255), 3)
         return img
 
@@ -164,7 +104,7 @@ class Page:
     def translate (self):
         removed = []
         for para in self.paragraphs: 
-            result = para.translateText()
+            result = para.translatedText()
             if result == None: removed.append(para)
         for remove in removed:
             self.paragraphs.remove(remove)

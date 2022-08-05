@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}\\StoryboardTranslate.py",
             "console": "externalTerminal",
             "justMyCode": true,
-            "args": ["${workspaceFolder}\\input\\decision.pdf", "${workspaceFolder}\\output\\Output.pdf"]
+            "args": ["${workspaceFolder}\\input\\Body.pdf", "${workspaceFolder}\\output\\Output.pdf"]
         }
     ]
 }

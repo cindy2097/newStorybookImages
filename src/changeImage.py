@@ -81,7 +81,7 @@ def changeImage (processTextResult):
             fontpath = os.path.join(os.getcwd(), "src", "Fonts", "ArialUnicodeMs.ttf")
             font_size = 50
             font = ImageFont.truetype(fontpath, font_size)
-            entire_text = best_para.translated
+            entire_text = best_para.translatedText
             
             # Split text if they overflow
             num_lines = 0 
