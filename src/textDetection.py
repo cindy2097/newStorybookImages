@@ -118,7 +118,7 @@ def processText (path, target_language):
         image = cv2.imread(full_path)
     
         # Craft Text Detector 
-        result = craft.detect_text(full_path)["boxes"].tolist()
+        result = craft.detect_text(full_path)["boxes"]
 
         # Construct page and append
         page = constructPage(result, index, target_language, image)

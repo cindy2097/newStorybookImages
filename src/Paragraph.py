@@ -39,34 +39,17 @@ class BoundingBox:
         return False
     
 class Paragraph: 
-    lines : list[BoundingBox] = [] # Array of BoundingBox
-    texts : list[str] = [] # Array of strings that correspond with each line
     paragraphBox : BoundingBox = None # BoundingBox of general Paragraph
     pageNum = -1           # The page number the paragraph is in
     paragraphId = -1    # The paragraph unique id in the page
     dominant_color = [] # The rgb values of the dominant color
     translated = "" # The translated text of the paragraph  
 
-    def __init__ (self, lines, page, paragraphId, target_lang): 
-        self.lines = lines
-        self.texts = ["" for _ in self.lines]
+    def __init__ (self, TranslatedText, origText, bbox, page): 
+        self.translatedText = TranslatedText
+        self.originalText = origText
         self.pageNum = page
-        self.paragraphId = paragraphId
-        self.target_lang = target_lang
-        
-        # Get paragraph box of the general paragraph using self.lines
-        self.paragraphBox = BoundingBox()
-        max_y = 0 
-        for line_bounding_box in self.lines: 
-            if line_bounding_box.x < self.paragraphBox.x or self.paragraphBox.x == -1: 
-                self.paragraphBox.x = line_bounding_box.x 
-            if line_bounding_box.y < self.paragraphBox.y or self.paragraphBox.y == -1:
-                self.paragraphBox.y = line_bounding_box.y
-            if line_bounding_box.w > self.paragraphBox.w: 
-                self.paragraphBox.w = line_bounding_box.w
-            if line_bounding_box.y + line_bounding_box.h > max_y: 
-                max_y = line_bounding_box.y + line_bounding_box.h
-        self.paragraphBox.h = max_y - self.paragraphBox.y
+        self.paragraphBox = bbox
 
         # -------------- CHANGE THIS TO YOUR TESSERACT OCR FILE -------------- #
         pytesseract.pytesseract.tesseract_cmd = "C:\\msys64\\mingw32\\bin\\tesseract.exe" 
@@ -92,11 +75,9 @@ class Paragraph:
         palette_index = color_counts[0][1]
         self.dominant_color = palette[palette_index*3:palette_index*3+3]
         
-        return self.texts, self.dominant_color     
+        return self.dominant_color     
 
     def apply_offset (self, offset_x=0, offset_y=0):
-        for index in range(len(self.lines)):
-            self.lines[index].apply_offset(offset_x, offset_y)
         self.paragraphBox.apply_offset(offset_x, offset_y)        
         return self
 
@@ -127,11 +108,3 @@ class Page:
         cv2.resizeWindow(name, 1000, 800)
         cv2.imshow(name, img) 
         cv2.waitKey(0)
-
-    def translate (self):
-        removed = []
-        for para in self.paragraphs: 
-            result = para.translatedText()
-            if result == None: removed.append(para)
-        for remove in removed:
-            self.paragraphs.remove(remove)
