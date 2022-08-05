@@ -1,100 +1,130 @@
+from concurrent.futures import process
+from distutils.command.clean import clean
+from fnmatch import translate
+from typing import overload
+from urllib import response
+import pytesseract              # For Text Extraction  
 import cv2                      # Image processing and countour detection
 import os                       # Path
 from tqdm import tqdm           # Progress Bar
 import numpy as np              # average color calculations
 import pickle                   # For caching detection (brings it MUCH easier to changeImage.py)
 from termcolor import colored   # For color on terminal (used to send out warnings)
+import craft_text_detector      # For the detection of text :) 
 
 import re                # For some reason pytesseract adds in \n and \x0c. This will remove it
 from Paragraph import *  # Paragraph class and Bounding Box class
 
-# most of the code is from https://www.geeksforgeeks.org/text-detection-and-extraction-using-opencv-and-ocr/
-def getCountours (path): 
-    img = cv2.imread(path)
-    
-    # Convert the image to gray scale
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    
-    # Performing OTSU threshold (highlights edges)
-    _, thresh1 = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU | cv2.THRESH_BINARY_INV)
-    
-    # Specify structure shape and kernel size.
-    # Kernel size increases or decreases the area
-    # of the rectangle to be detected.
-    # A smaller value like (10, 10) will detect
-    # each word instead of a sentence.
-    rect_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25))
-    
-    # Applying dilation on the threshold image (somewhat blurs the image so that the bounding box can generalize)
-    dilation = cv2.dilate(thresh1, rect_kernel, iterations = 1)
+def removeChar(text): 
+    special_char_dict = {
+        "’": "'",
+        "”": "'",
+        "“": "'",
+        "—": "-",
+        "\"": ""
+    }
+    for key in special_char_dict:
+        text = text.replace(key, special_char_dict[key])
 
-    # Finding contours
-    contours, _ = cv2.findContours(dilation, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    return contours, img.copy()
+    return text 
 
-def detectParagraphs (lines, page, target_lang, image, x_threshold=50): 
-    # Given a set of points, give a bounding box of each point
-    arr = [] 
-    for line in lines:
-        if len(arr) == 0:
-            arr.append([line])
-            continue
-        for index, value in enumerate(arr): 
-            # If bounding boxes are TOO similar
-            if abs(value[0].x - line.x) + abs(value[0].y - line.y) + abs(value[0].w - line.w) + abs(value[0].h - line.h) < 20:
-                continue 
-            if abs(value[0].x - line.x) <= x_threshold:
-                arr[index].append(line)
-                break
-            if index == len(arr) - 1: arr.append([line])
+def translateText (overall_text, target_lang, delay=1, ): 
+    # How to convert target_language (ex: turkish) to language token?
+    # What is the auth token?
+    auth_token = SensitiveInfo.auth_token 
 
-    # Replace each array of points with Paragraph class 
-    output = []
-    for index, value in enumerate(arr): 
-        # value is a bunch of bounding boxes that correspond to each line in the paragraph
-        para = Paragraph(value, page, index, target_lang)
+    url = "https://platform.neuralspace.ai/api/translation/v1/translate"
+    headers = {}
+    headers["Accept"] = "application/json, text/plain, */*"
+    headers["authorization"] = auth_token
+    headers["Content-Type"] = "application/json;charset=UTF-8"
 
-        # check if paragraph is too big or too small. If it is, discard paragraph
-        if (para.paragraphBox.w > image.shape[0] * 0.5) or (para.paragraphBox.h > image.shape[1] * 0.5): 
-            continue
+    # send request
+    data = f""" 
+    {{
+        "text": "{removeChar(overall_text)}",
+        "sourceLanguage": "en",
+        "targetLanguage": "{target_lang}"
+    }}
+    """
+    sleep(delay) # If we send too much requests at once, then the server won't respond to the overflow of requests
+    resp = requests.post(url, headers=headers, data=data)
+    try:
+        response_dict = json.loads(resp.text)
+        return response_dict["data"]["translatedText"]
+    except Exception:
+        print(colored("\nError sending response to NeuralSpace API. Deleting Paragraph! \nResponse: ", "red"), end="")
+        print(resp)
+        print(colored("Text sent: ", "red"), end="")
+        print(removeChar(overall_text))
+        return None
+
+def constructPage (result, page_num, target_lang, image):
+    # Construct black background
+    processedImg = np.zeros((image.shape[0], image.shape[1]))
+    
+    # Add white rectangle in background
+    for rect in result: 
+        pointOne = (round(rect[0][0]), round(rect[0][1]))
+        pointTwo = (round(rect[2][0]), round(rect[2][1]))
+        processedImg = cv2.rectangle(processedImg, pointOne, pointTwo, (255, 255, 255), -1)
+
+    # Dilate and find contours to get general paragraphs
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (10,10))
+    processedImg = cv2.dilate(processedImg, kernel, iterations=5)
+    _, processedImg = cv2.threshold(processedImg, 127, 255, 0)
+    cnts = cv2.findContours(cv2.convertScaleAbs(processedImg), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+    
+    # Get bounding boxes
+    paragraphs = []
+    bboxes = [] 
+    for c in cnts: 
+        x,y,w,h = cv2.boundingRect(c)
+        bbox = BoundingBox(x, y, w, h)
+        bboxes.append(bbox)
+
+        # Get cropped image
+        cropped = bbox.crop_img(image)
+
+        # First, extract text using Google's Tesseract OCR engine
+        origText = re.sub(r'[\x00-\x1f]+', '',  pytesseract.image_to_string(cropped))
+
+        # Continue text if there is nothing there
+        if origText == None or origText.strip() == "": continue
+
+        # Then translate text
+        TranslatedText = translateText(origText, target_lang)
         
-        if (para.paragraphBox.w < image.shape[0] * 0.05) or (para.paragraphBox.h < image.shape[1] * 0.05):
-            continue
-            
-        # Append output
-        output.append(para)
+        # Continue text if there is nothing there
+        if TranslatedText == None or TranslatedText.strip() == "": continue
 
-    return output 
+        # Construct paragraph
+        para = Paragraph(TranslatedText, origText, bbox, page_num)
+        paragraphs.append(para)
+
+    return Page(paragraphs, image)
 
 def processText (path, target_language): 
     # This is the actual processtext array that stores an array of paragraphs 
     pages = []
+    craft = craft_text_detector.Craft(cuda=True)
 
     for filename in tqdm(os.listdir(path), desc="Processing Pages", unit="page"):
         if not filename.endswith(".jpg"):
             continue
         index = int(re.findall(r'\d+', filename.split(".")[0])[0])
         full_path = os.path.join(path, filename)
+        image = cv2.imread(full_path)
+    
+        # Craft Text Detector 
+        result = craft.detect_text(full_path)["boxes"].tolist()
 
-        # get countours 
-        contours, im2 = getCountours(full_path)
-
-        # Array that stores x, y, w, and h of the line
-        lines = []
-
-        for cnt in contours:
-            x, y, w, h = cv2.boundingRect(cnt)
-
-            # Append points
-            lines.append(BoundingBox(x, y, w, h))
-
-        # Get paragraph and page
-        paragraphs = detectParagraphs(lines, index, target_language, im2) 
-        page = Page(paragraphs, im2)
-        page.apply_ocr()
-
-        # Append to pages 
+        # Construct page and append
+        page = constructPage(result, index, target_language, image)
         pages.append(page)
+    
+    craft_text_detector.empty_cuda_cache()
     
     # cache pages
     with open(os.path.join(os.getcwd(), "src", "PagesCache", "Page.pkl"), "wb") as f: # "wb" because we want to write in binary mode

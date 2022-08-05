@@ -1,3 +1,5 @@
+import warnings         # Ignore warnings from EasyOCR
+warnings.filterwarnings("ignore")   
 import sys              # getting the arguments
 import pdf2image        # Thankfully, this handles most of step 1
 from tqdm import tqdm   # Progress bar!
@@ -38,7 +40,7 @@ def convertPDFToImage (path, cut_begin, cut_end):
     for index, page in enumerate(pages):
         if index < cut_begin:
             continue
-        if index > len(pages) - cut_end:
+        if index >= len(pages) - cut_end:
             break 
         cwd = os.getcwd()
         path = os.path.join(cwd, "src", "PNGImgs", "page"+str(index+1)+".jpg")
