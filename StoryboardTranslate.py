@@ -30,18 +30,14 @@ def img_to_pdf (input_dir, output_file):
         pdf.image(image,0,0,300,225) #the 300 and 250 is the size for the image to be blown up to
     pdf.output(output_file, "F")
 
-def convertPDFToImage (path, cut_begin, cut_end): 
+def convertPDFToImage (path): 
     for file in os.listdir(os.path.join(os.getcwd(), "src", "PNGImgs")):
         if file.endswith(".jpg"):
-            print(colored("Skipping Image Extraction! Using images in src/PNGImgs directory. (pages removed from beginning/end are not executed)", "red"))
+            print(colored("Skipping Image Extraction! Using images in src/PNGImgs directory.", "red"))
             return
     print("Converting pdf to images...", end="")
     pages = pdf2image.convert_from_path(path)
     for index, page in enumerate(pages):
-        if index < cut_begin:
-            continue
-        if index >= len(pages) - cut_end:
-            break 
         cwd = os.getcwd()
         path = os.path.join(cwd, "src", "PNGImgs", "page"+str(index+1)+".jpg")
         page.save(path, "JPEG")
@@ -55,8 +51,10 @@ if __name__ == "__main__":
     input_pdf_path = sys.argv[1]
     output_pdf_file = sys.argv[2]
     target_language = input("What's the language you want to convert it to? ") 
-    pdf_cut_begin = int(input("How much pages do you want to remove from the beginning? "))
-    pdf_cut_end = int(input("How much pages do you want to remove from the end? "))
+    pages_untranslate = input("What pages do you not want to translate? (ex: 1,2,3,5 will not translate pages 1, 2, 3, and 5) ")
+    pages_untranslate = pages_untranslate.replace(" ", "").split(",")
+    pages_untranslate = [x for x in pages_untranslate if x != '']
+    pages_untranslate = [int(i) for i in pages_untranslate]
 
     # Initializes all the directories
     full_path_img_dir = os.path.join(os.getcwd(), "src", "PNGImgs")
@@ -75,10 +73,10 @@ if __name__ == "__main__":
     # If we do not have cache, then generate the pages manually
     if pages == None: 
         # First step: Convert PDF into multiple PNG images
-        convertPDFToImage(input_pdf_path, pdf_cut_begin, pdf_cut_end) 
+        convertPDFToImage(input_pdf_path) 
 
         # Second step: get text detection file to get bounding boxes, translation, and average color 
-        pages = processText(full_path_img_dir, target_language)
+        pages = processText(full_path_img_dir, target_language, pages_untranslate)
 
     # Third Step: Alter image to for fill bounding box with average color, and with new translation
     changeImage(pages)
@@ -94,4 +92,3 @@ if __name__ == "__main__":
     [os.remove(os.path.join(out_img_dir, file)) for file in os.listdir(out_img_dir)]
     [os.remove(os.path.join(pages_cache_dir, file)) for file in os.listdir(pages_cache_dir)]
     print("Done")
-    

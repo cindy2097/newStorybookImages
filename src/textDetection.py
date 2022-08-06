@@ -100,12 +100,12 @@ def constructPage (result, page_num, target_lang, image):
         if TranslatedText == None or TranslatedText.strip() == "": continue
 
         # Construct paragraph
-        para = Paragraph(TranslatedText, origText, bbox, page_num)
+        para = Paragraph(TranslatedText, origText, bbox)
         paragraphs.append(para)
 
-    return Page(paragraphs, image)
+    return Page(paragraphs, page_num, image)
 
-def processText (path, target_language): 
+def processText (path, target_language, pages_exception): 
     # This is the actual processtext array that stores an array of paragraphs 
     pages = []
     craft = craft_text_detector.Craft(cuda=True)
@@ -116,13 +116,17 @@ def processText (path, target_language):
         index = int(re.findall(r'\d+', filename.split(".")[0])[0])
         full_path = os.path.join(path, filename)
         image = cv2.imread(full_path)
-    
-        # Craft Text Detector 
-        result = craft.detect_text(full_path)["boxes"]
 
-        # Construct page and append
-        page = constructPage(result, index, target_language, image)
-        pages.append(page)
+        # Skip text detection if in pages_exception
+        if index in pages_exception:
+            pages.append(Page([], index, image))
+        else:
+            # Craft Text Detector 
+            result = craft.detect_text(full_path)["boxes"]
+
+            # Construct page and append
+            page = constructPage(result, index, target_language, image)
+            pages.append(page)
     
     craft_text_detector.empty_cuda_cache()
     

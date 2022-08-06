@@ -36,7 +36,6 @@ def chunks(lst, n):
 
 def changeImage (processTextResult): 
     for page in tqdm(processTextResult, desc="Changing image: "): 
-        pageNum = 0
         page = cast(Page, page) 
         img = page.original_image
         img_h = img.shape[0] 
@@ -127,9 +126,6 @@ def changeImage (processTextResult):
             draw.text((bb_best.x, bb_best.y), entire_text, fill=color, font=font)
             img = np.array(img_pil)
 
-            # set page number
-            pageNum = best_para.pageNum
-        
         # Save image
-        file = os.path.join(os.getcwd(), "src", "PNGImgsOutput", "page"+str(pageNum)+".jpg")
+        file = os.path.join(os.getcwd(), "src", "PNGImgsOutput", "page"+str(page.page_num)+".jpg")
         cv2.imwrite(file, img)

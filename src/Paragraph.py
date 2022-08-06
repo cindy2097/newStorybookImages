@@ -40,15 +40,13 @@ class BoundingBox:
     
 class Paragraph: 
     paragraphBox : BoundingBox = None # BoundingBox of general Paragraph
-    pageNum = -1           # The page number the paragraph is in
     paragraphId = -1    # The paragraph unique id in the page
     dominant_color = [] # The rgb values of the dominant color
     translated = "" # The translated text of the paragraph  
 
-    def __init__ (self, TranslatedText, origText, bbox, page): 
+    def __init__ (self, TranslatedText, origText, bbox): 
         self.translatedText = TranslatedText
         self.originalText = origText
-        self.pageNum = page
         self.paragraphBox = bbox
 
         # -------------- CHANGE THIS TO YOUR TESSERACT OCR FILE -------------- #
@@ -92,10 +90,12 @@ class Paragraph:
 class Page: 
     paragraphs = []
     original_image = None
+    page_num = 0
 
-    def __init__(self, paragraphs, original_image) -> None:
+    def __init__(self, paragraphs, page_num, original_image) -> None:
         self.paragraphs = paragraphs
         self.original_image = original_image
+        self.page_num = page_num
         for para in self.paragraphs: 
             para.get_dominant_color(original_image)
 
