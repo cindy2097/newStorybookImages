@@ -79,7 +79,7 @@ def changeImage (processTextResult):
             # Initialize font and text 
             fontpath = os.path.join(os.getcwd(), "src", "Fonts", "ArialUnicodeMs.ttf")
             font_size = 50
-            font = ImageFont.truetype(fontpath, font_size)
+            font = ImageFont.truetype(fontpath, font_size, layout_engine=ImageFont.LAYOUT_RAQM)
             entire_text = best_para.translatedText
             
             # Split text if they overflow
@@ -123,7 +123,8 @@ def changeImage (processTextResult):
             # Add text
             img_pil = Image.fromarray(img)
             draw = ImageDraw.Draw(img_pil)
-            draw.text((bb_best.x, bb_best.y), entire_text, fill=color, font=font)
+            #****************** IMPORTANT TO CHANGE LANGUAGE TO YOUR DESIRED LANGUAGE *************************#
+            draw.text((bb_best.x, bb_best.y), entire_text, fill=color, font=font, language="te")
             img = np.array(img_pil)
 
         # Save image

@@ -11,6 +11,17 @@ This project will attempt extract text from a pdf and then try to output a new v
 * Please create a file, SensitiveInfo.py, containing a single line, "auth_token=[neuralspace auth token]". Please ask Subha for the auth token
 * Please create two folders in the src foler, "PNGImgs" and "PNGImgsOutput" and "PagesCache", also create a folder in the project called "output"
 
+## RAQM:
+
+Check https://stackoverflow.com/questions/62939101/how-to-install-pre-built-pillow-wheel-with-libraqm-dlls-on-windows for instructions on how to install RAQM, a library that's suppose to help with special character rendering.
+Make sure that you put the <strong>64</strong> bit versions of raqm when you extract the .zip file into your Python path. 
+You can check if RAQM is installed if you do:
+
+```py
+from PIL import features
+features.check('raqm')
+```
+
 ## Usage: 
 
 Then, you could use the program in this format: <br>
