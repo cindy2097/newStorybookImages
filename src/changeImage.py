@@ -1,3 +1,5 @@
+from importlib_metadata import entry_points
+from re import I
 import cv2                # Image processing and countour detection
 import os                 # Path
 from tqdm import tqdm     # Progress Bar
@@ -5,7 +7,8 @@ import math               # Math operations for calculating contrast and floor f
 from PIL import ImageDraw # Library for drawing
 from PIL import ImageFont # Library for drawing 
 from PIL import Image     # Library for drawing
-import numpy as np        # For image conversion
+import numpy as np
+from zmq import EVENT_MONITOR_STOPPED        # For image conversion 
 from Paragraph import *   # Import Paragraph, BoundingBox, and Page classes
 from typing import cast   # To enable accurate and helpful autocomplete during developing :) 
 from copy import deepcopy # For deepcopying the bounding boxes for comparison
@@ -34,8 +37,9 @@ def chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
-def changeImage (processTextResult): 
+def changeImage (processTextResult:List[Page]): 
     for page in tqdm(processTextResult, desc="Changing image: "): 
+        pageNum = 0
         page = cast(Page, page) 
         img = page.original_image
         img_h = img.shape[0] 
@@ -49,10 +53,10 @@ def changeImage (processTextResult):
             right_para = deepcopy(orig_paragraph).apply_offset(offset_x=orig_paragraph.paragraphBox.w)
             top_para = deepcopy(orig_paragraph).apply_offset(offset_y=-orig_paragraph.paragraphBox.h)
             bottom_para = deepcopy(orig_paragraph).apply_offset(offset_y=orig_paragraph.paragraphBox.h)
-            options = [left_para, right_para, top_para, bottom_para]
+            options:list[Paragraph] = [left_para, right_para, top_para, bottom_para]
 
             # Elimate all boxes that are out of bounds from image
-            elim = [] 
+            elim:list[Paragraph] = [] 
             for option in options: 
                 if option.out_of_bounds(img_w, img_h):
                     elim.append(option)
@@ -65,7 +69,7 @@ def changeImage (processTextResult):
 
             # For the rest of the boxes, assign a score to them that has the most average color closer to paragraph dominant color
             lowest_score = -1 
-            best_para = None
+            best_para:Paragraph = None
             for option in options: 
                 cropped_img = option.paragraphBox.crop_img(img)
                 avg_color = np.average(cropped_img, axis=(0,1)).tolist()
@@ -77,10 +81,10 @@ def changeImage (processTextResult):
             
             #============== Add Translated Text to Bounding Box ==============#
             # Initialize font and text 
-            fontpath = os.path.join(os.getcwd(), "src", "Fonts", "ArialUnicodeMs.ttf")
+            fontpath = os.path.join(os.getcwd(), "src", "Fonts", "Pothana2000.ttf")
             font_size = 50
             font = ImageFont.truetype(fontpath, font_size, layout_engine=ImageFont.LAYOUT_RAQM)
-            entire_text = best_para.translatedText
+            entire_text = best_para.translated
             
             # Split text if they overflow
             num_lines = 0 
@@ -109,7 +113,6 @@ def changeImage (processTextResult):
                 font = ImageFont.truetype(fontpath, font_size)
                 font_bb = font.getsize(entire_text)
 
-
             # Fill in background color
             img[bb_best.y : bb_best.y + bb_best.h, bb_best.x : bb_best.x + bb_best.w, 0] = best_para.dominant_color[0]
             img[bb_best.y : bb_best.y + bb_best.h, bb_best.x : bb_best.x + bb_best.w, 1] = best_para.dominant_color[1]
@@ -123,10 +126,12 @@ def changeImage (processTextResult):
             # Add text
             img_pil = Image.fromarray(img)
             draw = ImageDraw.Draw(img_pil)
-            #****************** IMPORTANT TO CHANGE LANGUAGE TO YOUR DESIRED LANGUAGE *************************#
-            draw.text((bb_best.x, bb_best.y), entire_text, fill=color, font=font, language="te")
+            draw.text((bb_best.x, bb_best.y), entire_text, fill=color, font=font)
             img = np.array(img_pil)
 
+            # set page number
+            pageNum = best_para.pageNum
+        
         # Save image
-        file = os.path.join(os.getcwd(), "src", "PNGImgsOutput", "page"+str(page.page_num)+".jpg")
+        file = os.path.join(os.getcwd(), "src", "PNGImgsOutput", "page"+str(pageNum)+".jpg")
         cv2.imwrite(file, img)
